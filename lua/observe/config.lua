@@ -1,13 +1,8 @@
+local M = {}
+
 ---@class ObserveConfig
 ---@field adapters table<string, boolean>?
 ---@field max_spans integer?
-
----@class ObserveConfigModule
----@field defaults ObserveConfig
----@field merge fun(user: ObserveConfig?): ObserveConfig
-
-local M = {}
-
 
 ---@type ObserveConfig
 M.defaults = {

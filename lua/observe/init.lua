@@ -1,5 +1,5 @@
----@type ObserveConfigModule
 local config = require("observe.config")
+local store = require("observe.core.store")
 
 local M = {}
 
@@ -16,6 +16,7 @@ local state = {
 ---@param opts ObserveConfig?
 function M.setup(opts)
   state.config = config.merge(opts)
+  store.configure({ max_spans = state.config.max_spans })
 end
 
 function M.start()
