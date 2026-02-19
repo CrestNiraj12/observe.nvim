@@ -2,12 +2,14 @@ local clock = require("observe.core.clock")
 
 local M = {}
 
----@class ObserveSpan
+---@class StartObserveSpan
 ---@field name string
+---@field meta table?
 ---@field start_ns integer
+
+---@class ObserveSpan : StartObserveSpan
 ---@field end_ns integer?
 ---@field duration_ns integer?
----@field meta table?
 
 ---@class StoreState
 ---@field enabled boolean
@@ -20,7 +22,6 @@ local state = {
   max_spans = 1000,
   spans = {}
 }
-
 
 ---@class ObserveStoreOpts
 ---@field max_spans integer?
@@ -53,7 +54,7 @@ end
 --- Begin a span and returns it or nil if disabled.
 ---@param name string
 ---@param meta table?
----@return ObserveSpan?
+---@return StartObserveSpan?
 function M.begin_span(name, meta)
   if not state.enabled then
     return
@@ -66,8 +67,8 @@ function M.begin_span(name, meta)
   }
 end
 
---- Finishes a span and returns it or nil if disabled.
----@param h ObserveSpan?
+--- Finishes a span and stores it in state
+---@param h StartObserveSpan?
 function M.finish_span(h)
   if not h or not state.enabled then
     return
@@ -75,6 +76,7 @@ function M.finish_span(h)
 
   local end_ns = clock.now_ns()
 
+  ---@type ObserveSpan
   local span = {
     name = h.name,
     meta = h.meta,
@@ -92,7 +94,7 @@ function M.finish_span(h)
 end
 
 ---@param name string
----@param fn function
+---@param fn fun(): any
 ---@param meta table?
 ---@return any
 function M.time(name, fn, meta)

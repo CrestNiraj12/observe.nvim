@@ -1,5 +1,6 @@
 local config = require("observe.config")
 local store = require("observe.core.store")
+local report = require("observe.ui.report")
 
 local M = {}
 
@@ -26,6 +27,9 @@ function M.start()
   end
 
   state.enabled = true
+  store.reset()
+  store.enable()
+
   vim.notify("observe.nvim started!", vim.log.levels.INFO)
 end
 
@@ -36,6 +40,8 @@ function M.stop()
   end
 
   state.enabled = false
+  store.disable()
+
   vim.notify("observe.nvim stopped!", vim.log.levels.INFO)
 end
 
@@ -45,11 +51,12 @@ function M.report()
     return
   end
 
-  vim.notify("Report is not implemented lol!", vim.log.levels.INFO)
+  local lines = report.render(store.get_spans())
+  report.open_report(lines)
 end
 
 function M.is_enabled()
-  return state.enabled
+  return store.is_enabled()
 end
 
 return M
