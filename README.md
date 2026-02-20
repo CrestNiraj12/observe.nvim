@@ -209,9 +209,4 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## License
 
-[Add your license here]
-
-## Inspiration
-
-This plugin is inspired by distributed tracing systems like Jaeger and OpenTelemetry, adapted for profiling Neovim operations.
-
+MIT License - see [LICENSE](LICENSE) file for details
