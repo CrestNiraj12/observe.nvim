@@ -31,7 +31,15 @@ function M.render(spans)
   local start_i = math.max(1, #spans - 50 + 1)
   for i = start_i, #spans do
     local span = spans[i]
-    lines[#lines + 1] = string.format("%7.2fms\t%s", ns_to_ms(span.duration_ns or 0), span.name)
+    local meta = span.meta or {}
+
+    local parts = {}
+    if meta.source then parts[#parts + 1] = meta.source end
+    if meta.group then parts[#parts + 1] = "group=" .. tostring(meta.group) end
+    if meta.pattern then parts[#parts + 1] = "pattern=" .. tostring(meta.pattern) end
+    local suffix = #parts > 0 and ("  [" .. table.concat(parts, " | ") .. "]") or ""
+
+    lines[#lines + 1] = string.format("%7.2fms\t%s%s", ns_to_ms(span.duration_ns or 0), span.name, suffix)
   end
 
   return lines
@@ -59,13 +67,16 @@ local function ensure_buf()
   vim.bo[buf].filetype = REPORT_FILETYPE
 
   vim.keymap.set("n", "q", function()
-    local cur_buf = vim.api.nvim_get_current_buf()
     local wins = vim.api.nvim_list_wins()
     if #wins > 1 then
+      -- if there are more than 1 window, close the current window
       pcall(vim.api.nvim_win_close, 0, false)
       return
     end
 
+    -- if there is only 1 window,
+    -- create a new buffer inside the window and close the current report buffer
+    local cur_buf = vim.api.nvim_get_current_buf()
     vim.cmd("enew")
     pcall(vim.api.nvim_buf_delete, cur_buf, { force = true })
   end, { buffer = buf, nowait = true, silent = true })

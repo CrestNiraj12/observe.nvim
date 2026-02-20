@@ -1,6 +1,7 @@
 local config = require("observe.config")
 local store = require("observe.core.store")
 local report = require("observe.ui.report")
+local autocmd_adapter = require("observe.adapters.autocmd")
 
 local M = {}
 
@@ -29,6 +30,7 @@ function M.start()
   state.enabled = true
   store.reset()
   store.enable()
+  autocmd_adapter.enable()
 
   vim.notify("observe.nvim started!", vim.log.levels.INFO)
 end
@@ -40,6 +42,7 @@ function M.stop()
   end
 
   state.enabled = false
+  autocmd_adapter.disable()
   store.disable()
 
   vim.notify("observe.nvim stopped!", vim.log.levels.INFO)
