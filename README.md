@@ -1,5 +1,7 @@
 # observe.nvim
 
+> ⚠️ **Note**: This plugin is in development phase. APIs and features may change.
+
 A performance profiling plugin for Neovim that helps you trace and measure the execution time of Neovim operations, particularly autocmd callbacks and custom Lua code.
 
 ## Features
