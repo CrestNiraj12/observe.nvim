@@ -22,37 +22,49 @@ local function render_top_slow_spans(spans)
   return lines
 end
 
----Render top 10 total durations by source
+---Render top 10 total durations by source or name
 ---@param spans ObserveSpan[]
+---@param filter "source" | "name"
 ---@return string[]
-local function render_total_duration_by_source(spans)
+local function render_total_duration_by_filter(spans, filter)
   local lines = {}
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "Top totals by source"
+  lines[#lines + 1] = "Top totals by " .. filter
   lines[#lines + 1] = string.rep('-', #(lines[2]))
 
-  local merged_by_source = {} ---@type table<string, integer>
-  for _, span in ipairs(spans) do
-    local source = span.meta and span.meta.source or '?'
-    merged_by_source[source] = (merged_by_source[source] or 0) + span.duration_ns
+  local merged_by_filter = {} ---@type table<string, integer>
+  if filter ~= 'source' and filter ~= 'name' then
+    filter = 'source' -- set default filter as source
   end
 
-  ---@class TotalBySource
-  ---@field source string
+  for _, span in ipairs(spans) do
+    local data
+
+    if filter == 'name' then
+      data = span.name and span.name or '?'
+    else
+      data = span.meta and span.meta[filter] or '?'
+    end
+
+    merged_by_filter[data] = (merged_by_filter[data] or 0) + span.duration_ns
+  end
+
+  ---@class TotalByFilter
+  ---@field filter string
   ---@field duration integer
 
-  local totalsBySource = {} ---@type TotalBySource[]
-  for source, duration in pairs(merged_by_source) do
-    totalsBySource[#totalsBySource + 1] = { source = source, duration = duration }
+  local totalsByFilter = {} ---@type TotalByFilter[]
+  for k, v in pairs(merged_by_filter) do
+    totalsByFilter[#totalsByFilter + 1] = { filter = k, duration = v }
   end
 
-  table.sort(totalsBySource, function(a, b)
+  table.sort(totalsByFilter, function(a, b)
     return a.duration > b.duration
   end)
 
-  for i = 1, math.min(10, #totalsBySource) do
-    local span = totalsBySource[i]
-    lines[#lines + 1] = string.format("%7.2fms\t%s", utils.ns_to_ms(span.duration), span.source)
+  for i = 1, math.min(10, #totalsByFilter) do
+    local span = totalsByFilter[i]
+    lines[#lines + 1] = string.format("%7.2fms\t%s", utils.ns_to_ms(span.duration), span.filter)
   end
   return lines
 end
@@ -83,8 +95,13 @@ function M.render(spans)
     lines[#lines + 1] = v
   end
 
-  local total_by_duration = render_total_duration_by_source(spans)
+  local total_by_duration = render_total_duration_by_filter(spans, "source")
   for _, v in ipairs(total_by_duration) do
+    lines[#lines + 1] = v
+  end
+
+  local total_by_event = render_total_duration_by_filter(spans, "name")
+  for _, v in ipairs(total_by_event) do
     lines[#lines + 1] = v
   end
 
