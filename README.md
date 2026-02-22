@@ -117,12 +117,27 @@ end
 
 ### Report Output
 
-The report displays:
+The report displays multiple sections to help you analyze performance:
+
+**Summary Section**
 - Total number of spans recorded
 - Total execution time of all spans
-- Last 50 spans (or fewer if less than 50 have been recorded)
-- Execution time for each span
-- Metadata including source file, line number, and event type (for autocommands)
+
+**Top Slow Spans**
+- The 10 slowest individual spans
+- Helps identify the most time-consuming operations
+
+**Top Totals by Source**
+- Aggregated execution times grouped by source file and line number
+- Shows which files are consuming the most time overall
+
+**Top Totals by Event Name**
+- Aggregated execution times grouped by event/operation name
+- Helps identify which operations are called most frequently
+
+**Timeline**
+- Last 50 spans in chronological order
+- Shows execution sequence with metadata (source, group, pattern, etc.)
 
 Example report:
 ```
@@ -130,10 +145,28 @@ observe.nvim --- Report
 ------------------------
 spans: 42 | total: 125.45ms
 
-  5.23ms	autocmd: BufRead	[group=null | pattern=null]
-  2.18ms	autocmd: FileType	[source=/path/to/config:42]
-  1.05ms	my operation	[custom=metadata]
-  ...
+Top slow spans
+--------------
+   <0.01ms	autocmd: BufRead	[group=null | pattern=null]
+    5.23ms	autocmd: FileType	[source=/path/to/config:42]
+    1.05ms	my operation	[custom=metadata]
+
+Top totals by source
+--------------------
+   10.45ms	/path/to/config:42
+    5.12ms	/path/to/plugin:10
+
+Top totals by name
+------------------
+   15.20ms	autocmd: FileType
+   10.45ms	autocmd: BufRead
+
+Timeline
+--------
+    5.23ms	autocmd: FileType	[source=/path/to/config:42]
+    3.18ms	autocmd: BufRead	[group=null | pattern=null]
+    1.05ms	my operation	[custom=metadata]
+    ...
 ```
 
 ### Report Navigation
@@ -182,9 +215,12 @@ observe.nvim/
 │   ├── adapters/
 │   │   └── autocmd.lua        # Autocmd interception
 │   └── ui/
-│       └── report.lua         # Report rendering and display
-└── plugin/
-    └── observe.lua            # Plugin commands
+│       ├── report.lua         # Report rendering and display
+│       └── utils.lua          # UI utility functions
+├── plugin/
+│   └── observe.lua            # Plugin commands
+├── LICENSE                    # MIT License
+└── README.md                  # Project documentation
 ```
 
 ## Performance Considerations
