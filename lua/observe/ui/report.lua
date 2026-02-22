@@ -6,12 +6,14 @@ local M = {}
 ---@param spans ObserveSpan[]
 ---@return string[]
 local function render_top_slow_spans(spans)
-  local lines = {}
+  local lines       = {}
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "Top slow spans"
-  lines[#lines + 1] = string.rep('-', #(lines[2]))
 
-  local spans_copy = spans
+  local header      = "Top slow spans"
+  lines[#lines + 1] = header
+  lines[#lines + 1] = string.rep('-', #header)
+
+  local spans_copy  = vim.tbl_extend("force", {}, spans)
   table.sort(spans_copy, function(a, b)
     return (a.duration_ns or 0) > (b.duration_ns or 0)
   end)
@@ -25,46 +27,48 @@ end
 
 ---Render top 10 total durations by source or name
 ---@param spans ObserveSpan[]
----@param filter "source" | "name"
+---@param key "source" | "name"
 ---@return string[]
-local function render_total_duration_by_filter(spans, filter)
+local function render_total_duration_by_filter(spans, key)
   local lines = {}
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "Top totals by " .. filter
-  lines[#lines + 1] = string.rep('-', #(lines[2]))
+
+  local header = "Top totals by " .. key
+  lines[#lines + 1] = header
+  lines[#lines + 1] = string.rep('-', #header)
 
   local merged_by_filter = {} ---@type table<string, integer>
-  if filter ~= 'source' and filter ~= 'name' then
-    filter = 'source' -- set default filter as source
+  if key ~= 'source' and key ~= 'name' then
+    key = 'source' -- set default filter as source
   end
 
   for _, span in ipairs(spans) do
     local data
 
-    if filter == 'name' then
+    if key == 'name' then
       data = span.name and span.name or '?'
     else
-      data = span.meta and span.meta[filter] or '?'
+      data = span.meta and span.meta[key] or '?'
     end
 
     merged_by_filter[data] = (merged_by_filter[data] or 0) + (span.duration_ns or 0)
   end
 
-  ---@class TotalByFilter
+  ---@class TotalByKey
   ---@field filter string
   ---@field duration integer
 
-  local totalsByFilter = {} ---@type TotalByFilter[]
+  local totals_by_key = {} ---@type TotalByKey[]
   for k, v in pairs(merged_by_filter) do
-    totalsByFilter[#totalsByFilter + 1] = { filter = k, duration = v }
+    totals_by_key[#totals_by_key + 1] = { filter = k, duration = v }
   end
 
-  table.sort(totalsByFilter, function(a, b)
+  table.sort(totals_by_key, function(a, b)
     return a.duration > b.duration
   end)
 
-  for i = 1, math.min(10, #totalsByFilter) do
-    local span = totalsByFilter[i]
+  for i = 1, math.min(10, #totals_by_key) do
+    local span = totals_by_key[i]
     local ms = utils.ns_to_ms(span.duration)
     lines[#lines + 1] = string.format("%s\t%s", utils.render_timestamp(ms), span.filter)
   end
