@@ -1,10 +1,78 @@
+local utils = require("observe.ui.utils")
+
 local M = {}
 
----Convert nanosecond to millisecond timestamp
----@param ns integer
----@return number
-local function ns_to_ms(ns)
-  return ns / 1e6
+---Render top 10 slowest spans
+---@param spans ObserveSpan[]
+---@return string[]
+local function render_top_slow_spans(spans)
+  local lines       = {}
+  lines[#lines + 1] = ""
+
+  local header      = "Top slow spans"
+  lines[#lines + 1] = header
+  lines[#lines + 1] = string.rep('-', #header)
+
+  local spans_copy  = vim.tbl_extend("force", {}, spans)
+  table.sort(spans_copy, function(a, b)
+    return (a.duration_ns or 0) > (b.duration_ns or 0)
+  end)
+
+  for i = 1, math.min(10, #spans_copy) do
+    local span = spans_copy[i]
+    lines[#lines + 1] = utils.format_info(span)
+  end
+  return lines
+end
+
+---Render top 10 total durations by source or name
+---@param spans ObserveSpan[]
+---@param key "source" | "name"
+---@return string[]
+local function render_total_duration_by_filter(spans, key)
+  local lines = {}
+  lines[#lines + 1] = ""
+
+  local header = "Top totals by " .. key
+  lines[#lines + 1] = header
+  lines[#lines + 1] = string.rep('-', #header)
+
+  local merged_by_filter = {} ---@type table<string, integer>
+  if key ~= 'source' and key ~= 'name' then
+    key = 'source' -- set default filter as source
+  end
+
+  for _, span in ipairs(spans) do
+    local data
+
+    if key == 'name' then
+      data = span.name and span.name or '?'
+    else
+      data = span.meta and span.meta[key] or '?'
+    end
+
+    merged_by_filter[data] = (merged_by_filter[data] or 0) + (span.duration_ns or 0)
+  end
+
+  ---@class TotalByKey
+  ---@field filter string
+  ---@field duration integer
+
+  local totals_by_key = {} ---@type TotalByKey[]
+  for k, v in pairs(merged_by_filter) do
+    totals_by_key[#totals_by_key + 1] = { filter = k, duration = v }
+  end
+
+  table.sort(totals_by_key, function(a, b)
+    return a.duration > b.duration
+  end)
+
+  for i = 1, math.min(10, #totals_by_key) do
+    local span = totals_by_key[i]
+    local ms = utils.ns_to_ms(span.duration)
+    lines[#lines + 1] = string.format("%s\t%s", utils.render_timestamp(ms), span.filter)
+  end
+  return lines
 end
 
 ---Generate report based on spans
@@ -20,26 +88,38 @@ function M.render(spans)
     total_ns = total_ns + (s.duration_ns or 0)
   end
 
-  lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, ns_to_ms(total_ns))
-  lines[#lines + 1] = ""
+  lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, utils.ns_to_ms(total_ns))
 
   if #spans == 0 then
+    lines[#lines + 1] = ""
     lines[#lines + 1] = "No spans recorded!"
     return lines
   end
 
+  local top_slow_spans = render_top_slow_spans(spans)
+  for _, v in ipairs(top_slow_spans) do
+    lines[#lines + 1] = v
+  end
+
+  local total_by_duration = render_total_duration_by_filter(spans, "source")
+  for _, v in ipairs(total_by_duration) do
+    lines[#lines + 1] = v
+  end
+
+  local total_by_event = render_total_duration_by_filter(spans, "name")
+  for _, v in ipairs(total_by_event) do
+    lines[#lines + 1] = v
+  end
+
+  local timeline_header = "Timeline"
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = timeline_header
+  lines[#lines + 1] = string.rep('-', #timeline_header)
+
   local start_i = math.max(1, #spans - 50 + 1)
   for i = start_i, #spans do
     local span = spans[i]
-    local meta = span.meta or {}
-
-    local parts = {}
-    if meta.source then parts[#parts + 1] = meta.source end
-    if meta.group then parts[#parts + 1] = "group=" .. tostring(meta.group) end
-    if meta.pattern then parts[#parts + 1] = "pattern=" .. tostring(meta.pattern) end
-    local suffix = #parts > 0 and ("  [" .. table.concat(parts, " | ") .. "]") or ""
-
-    lines[#lines + 1] = string.format("%7.2fms\t%s%s", ns_to_ms(span.duration_ns or 0), span.name, suffix)
+    lines[#lines + 1] = utils.format_info(span)
   end
 
   return lines
@@ -84,12 +164,17 @@ local function ensure_buf()
   return buf
 end
 
+---@param buf integer
+---@param lines string[]
 local function set_lines(buf, lines)
   vim.bo[buf].modifiable = true
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
 end
 
+---Return window that contains the buffer
+---@param buf integer
+---@return integer|nil
 local function find_window_showing_buf(buf)
   local wins = vim.api.nvim_list_wins()
   for _, win in pairs(wins) do
