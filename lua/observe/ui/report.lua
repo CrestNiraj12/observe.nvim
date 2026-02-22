@@ -36,7 +36,14 @@ function M.render(spans)
     local parts = {}
     if meta.source then parts[#parts + 1] = meta.source end
     if meta.group then parts[#parts + 1] = "group=" .. tostring(meta.group) end
-    if meta.pattern then parts[#parts + 1] = "pattern=" .. tostring(meta.pattern) end
+    if meta.pattern then
+      local pattern = meta.pattern
+      if type(pattern) == "table" then
+        pattern = table.concat(pattern, ",")
+      end
+      parts[#parts + 1] = "pattern=" .. tostring(pattern)
+    end
+
     local suffix = #parts > 0 and ("  [" .. table.concat(parts, " | ") .. "]") or ""
 
     lines[#lines + 1] = string.format("%7.2fms\t%s%s", ns_to_ms(span.duration_ns or 0), span.name, suffix)
