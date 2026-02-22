@@ -7,6 +7,20 @@ function M.ns_to_ms(ns)
   return ns / 1e6
 end
 
+---Render timestamp logic
+---@param ms number
+---@return string
+function M.render_timestamp(ms)
+  local time
+  if ms > 0.01 then
+    time = string.format("%.2fms", ms)
+  else
+    time = "<0.01ms"
+  end
+
+  return string.format("%7s", time)
+end
+
 ---Extract info from meta
 ---@param meta table?
 ---@return string[]
@@ -34,7 +48,8 @@ end
 function M.format_info(span)
   local data = M.parse_info_from_meta(span.meta)
   local suffix = #data > 0 and ("  [" .. table.concat(data, " | ") .. "]") or ""
-  return string.format("%7.2fms\t%s%s", M.ns_to_ms(span.duration_ns or 0), span.name, suffix)
+  local timestamp = M.ns_to_ms(span.duration_ns or 0)
+  return string.format("%s\t%s%s", M.render_timestamp(timestamp), span.name, suffix)
 end
 
 return M

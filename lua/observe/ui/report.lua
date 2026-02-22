@@ -64,7 +64,8 @@ local function render_total_duration_by_filter(spans, filter)
 
   for i = 1, math.min(10, #totalsByFilter) do
     local span = totalsByFilter[i]
-    lines[#lines + 1] = string.format("%7.2fms\t%s", utils.ns_to_ms(span.duration), span.filter)
+    local ms = utils.ns_to_ms(span.duration)
+    lines[#lines + 1] = string.format("%s\t%s", utils.render_timestamp(ms), span.filter)
   end
   return lines
 end
