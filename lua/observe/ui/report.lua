@@ -1,10 +1,24 @@
+local utils = require("observe.ui.utils")
+
 local M = {}
 
----Convert nanosecond to millisecond timestamp
----@param ns integer
----@return number
-local function ns_to_ms(ns)
-  return ns / 1e6
+---Render top 10 slowest spans
+---@param spans ObserveSpan[]
+---@return string[]
+local function render_top_slow_spans(spans)
+  local lines = {}
+  lines[#lines + 1] = "Top slow spans"
+  lines[#lines + 1] = string.rep('-', #(lines[1]))
+
+  table.sort(spans, function(a, b)
+    return a.duration_ns > b.duration_ns
+  end)
+
+  for i = 1, math.min(10, #spans) do
+    local span = spans[i]
+    lines[#lines + 1] = utils.format_info(span)
+  end
+  return lines
 end
 
 ---Generate report based on spans
@@ -20,7 +34,7 @@ function M.render(spans)
     total_ns = total_ns + (s.duration_ns or 0)
   end
 
-  lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, ns_to_ms(total_ns))
+  lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, utils.ns_to_ms(total_ns))
   lines[#lines + 1] = ""
 
   if #spans == 0 then
@@ -28,25 +42,19 @@ function M.render(spans)
     return lines
   end
 
+  local top_slow_spans = render_top_slow_spans(spans)
+  for _, v in ipairs(top_slow_spans) do
+    lines[#lines + 1] = v
+  end
+
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "Timeline"
+  lines[#lines + 1] = string.rep('-', #(lines[1]))
+
   local start_i = math.max(1, #spans - 50 + 1)
   for i = start_i, #spans do
     local span = spans[i]
-    local meta = span.meta or {}
-
-    local parts = {}
-    if meta.source then parts[#parts + 1] = meta.source end
-    if meta.group then parts[#parts + 1] = "group=" .. tostring(meta.group) end
-    if meta.pattern then
-      local pattern = meta.pattern
-      if type(pattern) == "table" then
-        pattern = table.concat(pattern, ",")
-      end
-      parts[#parts + 1] = "pattern=" .. tostring(pattern)
-    end
-
-    local suffix = #parts > 0 and ("  [" .. table.concat(parts, " | ") .. "]") or ""
-
-    lines[#lines + 1] = string.format("%7.2fms\t%s%s", ns_to_ms(span.duration_ns or 0), span.name, suffix)
+    lines[#lines + 1] = utils.format_info(span)
   end
 
   return lines
@@ -91,12 +99,17 @@ local function ensure_buf()
   return buf
 end
 
+---@param buf integer
+---@param lines string[]
 local function set_lines(buf, lines)
   vim.bo[buf].modifiable = true
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.bo[buf].modifiable = false
 end
 
+---Return window that contains the buffer
+---@param buf integer
+---@return integer|nil
 local function find_window_showing_buf(buf)
   local wins = vim.api.nvim_list_wins()
   for _, win in pairs(wins) do
