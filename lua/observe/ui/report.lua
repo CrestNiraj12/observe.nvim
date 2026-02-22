@@ -11,12 +11,13 @@ local function render_top_slow_spans(spans)
   lines[#lines + 1] = "Top slow spans"
   lines[#lines + 1] = string.rep('-', #(lines[2]))
 
-  table.sort(spans, function(a, b)
-    return a.duration_ns > b.duration_ns
+  local spans_copy = spans
+  table.sort(spans_copy, function(a, b)
+    return (a.duration_ns or 0) > (b.duration_ns or 0)
   end)
 
-  for i = 1, math.min(10, #spans) do
-    local span = spans[i]
+  for i = 1, math.min(10, #spans_copy) do
+    local span = spans_copy[i]
     lines[#lines + 1] = utils.format_info(span)
   end
   return lines
@@ -46,7 +47,7 @@ local function render_total_duration_by_filter(spans, filter)
       data = span.meta and span.meta[filter] or '?'
     end
 
-    merged_by_filter[data] = (merged_by_filter[data] or 0) + span.duration_ns
+    merged_by_filter[data] = (merged_by_filter[data] or 0) + (span.duration_ns or 0)
   end
 
   ---@class TotalByFilter
