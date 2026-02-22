@@ -7,8 +7,9 @@ local M = {}
 ---@return string[]
 local function render_top_slow_spans(spans)
   local lines = {}
+  lines[#lines + 1] = ""
   lines[#lines + 1] = "Top slow spans"
-  lines[#lines + 1] = string.rep('-', #(lines[1]))
+  lines[#lines + 1] = string.rep('-', #(lines[2]))
 
   table.sort(spans, function(a, b)
     return a.duration_ns > b.duration_ns
@@ -17,6 +18,41 @@ local function render_top_slow_spans(spans)
   for i = 1, math.min(10, #spans) do
     local span = spans[i]
     lines[#lines + 1] = utils.format_info(span)
+  end
+  return lines
+end
+
+---Render top 10 total durations by source
+---@param spans ObserveSpan[]
+---@return string[]
+local function render_total_duration_by_source(spans)
+  local lines = {}
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = "Top totals by source"
+  lines[#lines + 1] = string.rep('-', #(lines[2]))
+
+  local merged_by_source = {} ---@type table<string, integer>
+  for _, span in ipairs(spans) do
+    local source = span.meta and span.meta.source or '?'
+    merged_by_source[source] = (merged_by_source[source] or 0) + span.duration_ns
+  end
+
+  ---@class TotalBySource
+  ---@field source string
+  ---@field duration integer
+
+  local totalsBySource = {} ---@type TotalBySource[]
+  for source, duration in pairs(merged_by_source) do
+    totalsBySource[#totalsBySource + 1] = { source = source, duration = duration }
+  end
+
+  table.sort(totalsBySource, function(a, b)
+    return a.duration > b.duration
+  end)
+
+  for i = 1, math.min(10, #totalsBySource) do
+    local span = totalsBySource[i]
+    lines[#lines + 1] = string.format("%7.2fms\t%s", utils.ns_to_ms(span.duration), span.source)
   end
   return lines
 end
@@ -35,9 +71,9 @@ function M.render(spans)
   end
 
   lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, utils.ns_to_ms(total_ns))
-  lines[#lines + 1] = ""
 
   if #spans == 0 then
+    lines[#lines + 1] = ""
     lines[#lines + 1] = "No spans recorded!"
     return lines
   end
@@ -47,9 +83,15 @@ function M.render(spans)
     lines[#lines + 1] = v
   end
 
+  local total_by_duration = render_total_duration_by_source(spans)
+  for _, v in ipairs(total_by_duration) do
+    lines[#lines + 1] = v
+  end
+
+  local timeline_header = "Timeline"
   lines[#lines + 1] = ""
-  lines[#lines + 1] = "Timeline"
-  lines[#lines + 1] = string.rep('-', #(lines[1]))
+  lines[#lines + 1] = timeline_header
+  lines[#lines + 1] = string.rep('-', #timeline_header)
 
   local start_i = math.max(1, #spans - 50 + 1)
   for i = start_i, #spans do
