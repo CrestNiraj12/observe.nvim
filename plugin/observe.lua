@@ -10,6 +10,7 @@ end, {})
 
 create_command("ObserveStop", function()
   observe().stop()
+  observe().report()
 end, {})
 
 create_command("ObserveReport", function()

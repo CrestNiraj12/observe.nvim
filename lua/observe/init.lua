@@ -62,4 +62,8 @@ function M.is_enabled()
   return store.is_enabled()
 end
 
+function M.toggle_timeline()
+  report.toggle_timeline()
+end
+
 return M
