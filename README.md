@@ -17,20 +17,20 @@ A performance profiling plugin for Neovim that helps you trace and measure the e
 Using [packer.nvim](https://github.com/wbthomson/packer.nvim):
 
 ```lua
-use 'niraj.shrestha/observe.nvim'
+use 'CrestNiraj12/observe.nvim'
 ```
 
 Using [vim-plug](https://github.com/junegunn/vim-plug):
 
 ```vim
-Plug 'niraj.shrestha/observe.nvim'
+Plug 'CrestNiraj12/observe.nvim'
 ```
 
 Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {
-  'niraj.shrestha/observe.nvim',
+  'CrestNiraj12/observe.nvim',
   config = function()
     require('observe').setup({
       max_spans = 1000
