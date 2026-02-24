@@ -101,7 +101,7 @@ local function render_total_duration_by_filter(spans, key)
 	return lines
 end
 
----Render top 50 recent spans
+---Render recent spans (up to max_timeline_spans, default 50)
 ---@param spans ObserveSpan[]
 ---@return string[]
 local function render_timeline(spans)
