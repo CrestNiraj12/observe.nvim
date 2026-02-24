@@ -42,7 +42,7 @@ function M.clean_src(raw)
 		return "?"
 	end
 	if #parts == 1 then
-		return "..." .. parts[1]:sub(math.max(1, #parts[1] - (max - 3) + 1))
+		return "..." .. parts[1]:sub(math.max(1, #parts[1] - max + 4))
 	end
 
 	local out = parts[#parts - 1] .. "/" .. parts[#parts] -- parent/file

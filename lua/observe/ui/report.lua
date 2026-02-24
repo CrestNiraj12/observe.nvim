@@ -113,6 +113,7 @@ function M.open_report(lines)
 	-- Refresh only if user is already in report buffer
 	if cur_buf == buf then
 		set_lines(buf, lines)
+		vim.cmd("normal! gg")
 		return
 	end
 
@@ -120,12 +121,14 @@ function M.open_report(lines)
 	if existing_win then
 		vim.api.nvim_set_current_win(existing_win)
 		set_lines(buf, lines)
+		vim.cmd("normal! gg")
 		return
 	end
 
 	vim.cmd("botright split")
 	vim.api.nvim_win_set_buf(0, buf)
 	set_lines(buf, lines)
+	vim.cmd("normal! gg")
 end
 
 ---Toggle to view/hide timeline spans

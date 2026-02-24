@@ -17,7 +17,7 @@ M.defaults = {
 ---@param user ObserveConfig?
 ---@return ObserveConfig
 function M.merge(user)
-	if user and user.max_timeline_spans and user.max_timeline_spans < 10 then
+	if user and user.max_timeline_spans and user.max_timeline_spans < constants.MIN_TIMELINE_SPANS then
 		vim.notify(
 			"`max_timeline_spans` must be >= " .. constants.MIN_TIMELINE_SPANS,
 			vim.log.levels.WARN,
