@@ -137,9 +137,9 @@ function M.toggle_timeline()
 		return
 	end
 
-	view.toggle_timeline_view()
-
 	local saved_view = vim.fn.winsaveview()
+
+	view.toggle_timeline_view()
 
 	local spans = store.get_spans()
 	local lines = view.render(spans)
