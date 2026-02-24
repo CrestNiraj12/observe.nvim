@@ -1,5 +1,6 @@
 local config = require("observe.config")
 local store = require("observe.core.store")
+local view = require("observe.ui.view")
 local report = require("observe.ui.report")
 local autocmd_adapter = require("observe.adapters.autocmd")
 
@@ -55,7 +56,7 @@ function M.report()
 	end
 
 	local spans = store.get_spans()
-	local lines = report.render(spans)
+	local lines = view.render(spans)
 	report.open_report(lines)
 end
 
