@@ -108,8 +108,7 @@ function M.open_report(lines)
 	local buf = ensure_buf()
 	ensure_highlights()
 
-	local cur_win = vim.api.nvim_get_current_win()
-	local cur_buf = vim.api.nvim_win_get_buf(cur_win)
+	local cur_buf = vim.api.nvim_get_current_buf()
 
 	-- Refresh only if user is already in report buffer
 	if cur_buf == buf then
@@ -131,18 +130,25 @@ end
 
 ---Toggle to view/hide timeline spans
 function M.toggle_timeline()
-	view.state.show_timeline = not view.state.show_timeline
+	local buf = ensure_buf()
+	local cur_buf = vim.api.nvim_get_current_buf()
+
+	if cur_buf ~= buf then
+		return
+	end
+
+	view.toggle_timeline_view()
 
 	local saved_view = vim.fn.winsaveview()
 
 	local spans = store.get_spans()
 	local lines = view.render(spans)
-
-	M.open_report(lines)
+	set_lines(buf, lines)
 
 	local height = vim.api.nvim_win_get_height(0)
-	if saved_view.topline > #lines - height + 1 then
-		saved_view.topline = math.max(1, #lines - vim.fn.winheight(0) + 1)
+	local max_topline = math.max(1, #lines - height + 1)
+	if saved_view.topline > max_topline then
+		saved_view.topline = max_topline
 	end
 
 	vim.fn.winrestview(saved_view)

@@ -1,14 +1,32 @@
+local constants = require("observe.constants")
 local utils = require("observe.ui.utils")
 
 local M = {}
 
----@class ReportUIState
+---@class TimelineViewState
+---@field max_timeline_spans integer -- minimum 10
+
+---@class ReportUIState: TimelineViewState
 ---@field show_timeline boolean
 
 ---@type ReportUIState
 local state = {
 	show_timeline = false,
+	max_timeline_spans = 50,
 }
+
+---Configure view state
+---@param opts TimelineViewState
+function M.configure(opts)
+	if opts and opts.max_timeline_spans then
+		state.max_timeline_spans = math.max(10, opts.max_timeline_spans)
+	end
+end
+
+---Toggle timeline show/hide status
+function M.toggle_timeline_view()
+	state.show_timeline = not state.show_timeline
+end
 
 ---Render top 10 slowest spans
 ---@param spans ObserveSpan[]
@@ -100,7 +118,7 @@ local function render_timeline(spans)
 
 	if state.show_timeline then
 		lines[#lines + 1] = string.rep("-", #timeline_header)
-		local start_i = math.max(1, #spans - 50 + 1)
+		local start_i = math.max(1, #spans - state.max_timeline_spans + 1)
 		for i = start_i, #spans do
 			local span = spans[i]
 			lines[#lines + 1] = utils.format_info(span)
@@ -115,7 +133,7 @@ end
 ---@return string[]
 function M.render(spans)
 	local lines = {}
-	lines[#lines + 1] = "observe.nvim --- Report"
+	lines[#lines + 1] = constants.PLUGIN_NAME .. " --- Report"
 	lines[#lines + 1] = string.rep("-", #lines[1])
 
 	local total_ns = 0

@@ -1,4 +1,5 @@
 local config = require("observe.config")
+local constants = require("observe.constants")
 local store = require("observe.core.store")
 local view = require("observe.ui.view")
 local report = require("observe.ui.report")
@@ -20,11 +21,12 @@ local state = {
 function M.setup(opts)
 	state.config = config.merge(opts)
 	store.configure({ max_spans = state.config.max_spans })
+	view.configure({ max_timeline_spans = state.config.max_timeline_spans })
 end
 
 function M.start()
 	if state.enabled then
-		vim.notify("observe.nvim is already running", vim.log.levels.WARN)
+		vim.notify("Tracing is already active.", vim.log.levels.WARN, { title = constants.PLUGIN_NAME })
 		return
 	end
 
@@ -33,12 +35,12 @@ function M.start()
 	store.enable()
 	autocmd_adapter.enable()
 
-	vim.notify("observe.nvim started!", vim.log.levels.INFO)
+	vim.notify("Tracing started!", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 end
 
 function M.stop()
 	if not state.enabled then
-		vim.notify("observe.nvim is not running", vim.log.levels.WARN)
+		vim.notify("Tracing is not active!", vim.log.levels.WARN, { title = constants.PLUGIN_NAME })
 		return
 	end
 
@@ -46,12 +48,12 @@ function M.stop()
 	autocmd_adapter.disable()
 	store.disable()
 
-	vim.notify("observe.nvim stopped!", vim.log.levels.INFO)
+	vim.notify("Tracing stopped. Generating report...", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 end
 
 function M.report()
 	if state.enabled then
-		vim.notify("stop observe.nvim before generating report", vim.log.levels.WARN)
+		vim.notify("Stop tracing before generating report.", vim.log.levels.WARN, { title = constants.PLUGIN_NAME })
 		return
 	end
 
