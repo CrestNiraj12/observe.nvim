@@ -147,9 +147,7 @@ function M.toggle_timeline()
 
 	local height = vim.api.nvim_win_get_height(0)
 	local max_topline = math.max(1, #lines - height + 1)
-	if saved_view.topline > max_topline then
-		saved_view.topline = max_topline
-	end
+	saved_view.topline = math.min(saved_view.topline, max_topline)
 
 	vim.fn.winrestview(saved_view)
 end
