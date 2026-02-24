@@ -1,5 +1,5 @@
 local constants = require("observe.constants")
-local utils = require("observe.ui.utils")
+local utils = require("observe.utils.metadata")
 
 local M = {}
 
