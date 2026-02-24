@@ -14,7 +14,7 @@ A performance profiling plugin for Neovim that helps you trace and measure the e
 
 ## Installation
 
-Using [packer.nvim](https://github.com/wbthomson/packer.nvim):
+Using [packer.nvim](https://github.com/wbthomason/packer.nvim):
 
 ```lua
 use 'CrestNiraj12/observe.nvim'
@@ -31,11 +31,9 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   'CrestNiraj12/observe.nvim',
-  config = function()
-    require('observe').setup({
-      max_spans = 1000
-    })
-  end
+  opts = {
+    max_spans = 1000
+  }
 }
 ```
 
@@ -241,11 +239,14 @@ observe.nvim/
 
 ## Troubleshooting
 
-### "observe.nvim is already running"
-You've called `:ObserveStart` twice. Call `:ObserveStop` first.
+### "Tracing is already active."
+You've called `:ObserveStart` twice without calling `:ObserveStop` first. Call `:ObserveStop` to stop the current tracing session.
 
-### "stop observe.nvim before generating report"
-Reports can only be generated when observe.nvim is not recording. Call `:ObserveStop` first.
+### "Tracing is not active!"
+You've called `:ObserveStop` when tracing is not running. Call `:ObserveStart` first to begin tracing.
+
+### "Stop tracing before generating report."
+Reports can only be generated when tracing is not active. Call `:ObserveStop` first to stop recording spans.
 
 ### No spans recorded
 Make sure to call `:ObserveStart` before the operations you want to measure, and ensure they actually execute autocommands or code you're manually timing.
