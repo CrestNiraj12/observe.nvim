@@ -4,7 +4,7 @@ local utils = require("observe.ui.utils")
 local M = {}
 
 ---@class TimelineViewState
----@field max_timeline_spans integer -- minimum 10
+---@field max_timeline_spans integer
 
 ---@class ReportUIState: TimelineViewState
 ---@field show_timeline boolean
@@ -19,7 +19,7 @@ local state = {
 ---@param opts TimelineViewState
 function M.configure(opts)
 	if opts and opts.max_timeline_spans then
-		state.max_timeline_spans = math.max(10, opts.max_timeline_spans)
+		state.max_timeline_spans = math.max(constants.MIN_TIMELINE_SPANS, opts.max_timeline_spans)
 	end
 end
 
