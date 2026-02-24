@@ -39,8 +39,8 @@ local function apply_highlights(buf, lines)
 	end
 end
 
----Open a new buffer if there isnt already a valid one,
----set keymap 'q' to close, and return the buffer
+---Open a new buffer if there isn't already a valid one,
+---set keymap 'q' to close and 't' to toggle timeline, and return the buffer
 ---@return integer
 local function ensure_buf()
 	if report_buf and vim.api.nvim_buf_is_valid(report_buf) then
