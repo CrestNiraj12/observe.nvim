@@ -98,9 +98,9 @@ local function render_timeline(spans)
 
 	lines[#lines + 1] = ""
 	lines[#lines + 1] = header_with_hint
-	lines[#lines + 1] = string.rep("-", #timeline_header)
 
 	if state.show_timeline then
+		lines[#lines + 1] = string.rep("-", #timeline_header)
 		local start_i = math.max(1, #spans - 50 + 1)
 		for i = start_i, #spans do
 			local span = spans[i]
@@ -152,6 +152,7 @@ function M.render(spans)
 		lines[#lines + 1] = v
 	end
 
+	lines[#lines + 1] = ""
 	return lines
 end
 
