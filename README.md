@@ -45,8 +45,9 @@ Initialize observe.nvim in your Neovim configuration:
 
 ```lua
 require('observe').setup({
-  max_spans = 1000,  -- Maximum number of spans to keep in memory
-  adapters = {}      -- Adapter configuration
+  max_spans = 1000,              -- Maximum number of spans to keep in memory
+  max_timeline_spans = 50,       -- Maximum spans to display in the timeline section
+  adapters = {}                  -- Adapter configuration
 })
 ```
 
@@ -55,7 +56,7 @@ require('observe').setup({
 ### Commands
 
 - **`:ObserveStart`** - Start recording performance spans
-- **`:ObserveStop`** - Stop recording performance spans
+- **`:ObserveStop`** - Stop recording performance spans and automatically generate a report
 - **`:ObserveReport`** - Generate and display a performance report
 - **`:ObserveToggle`** - Toggle recording on/off
 - **`:ObserveTestSpan`** - Record a test span (useful for testing)
@@ -173,6 +174,7 @@ Timeline
 
 When viewing a report:
 - Press `q` to close the report buffer
+- Press `t` to toggle the timeline section (show/hide recent spans)
 
 ## How It Works
 
@@ -197,10 +199,13 @@ The plugin maintains a rolling buffer, keeping only the most recent spans up to 
 
 ```lua
 {
-  max_spans = 1000,     -- Maximum number of spans to keep in memory
-  adapters = {}         -- Adapter configuration (reserved for future use)
+  max_spans = 1000,              -- Maximum number of spans to keep in memory
+  max_timeline_spans = 50,       -- Maximum spans to display in the timeline section (minimum: 10)
+  adapters = {}                  -- Adapter configuration (reserved for future use)
 }
 ```
+
+**Note**: `max_timeline_spans` must be at least 10. If a smaller value is provided, a warning will be shown and the default value of 50 will be used.
 
 ## Architecture
 
@@ -209,14 +214,18 @@ observe.nvim/
 ├── lua/observe/
 │   ├── init.lua               # Main module and public API
 │   ├── config.lua             # Configuration management
+│   ├── constants.lua          # Centralized constants
 │   ├── core/
 │   │   ├── store.lua          # Span storage and recording
 │   │   └── clock.lua          # High-precision timing
 │   ├── adapters/
-│   │   └── autocmd.lua        # Autocmd interception
-│   └── ui/
-│       ├── report.lua         # Report rendering and display
-│       └── utils.lua          # UI utility functions
+│   │   └── autocmd.lua        # Autocmd interception with path truncation
+│   ├── ui/
+│   │   ├── report.lua         # Report buffer management and navigation
+│   │   └── view.lua           # Report rendering and timeline management
+│   └── utils/
+│       ├── path.lua           # Path cleaning and truncation utilities
+│       └── metadata.lua       # UI utility functions and formatting
 ├── plugin/
 │   └── observe.lua            # Plugin commands
 ├── LICENSE                    # MIT License
