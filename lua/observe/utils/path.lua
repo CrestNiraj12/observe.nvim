@@ -56,7 +56,9 @@ function M.clean_src(raw)
 
 	-- add ellipsis if we truncated
 	if #out < #src and (#out + 4) <= max then
-		out = ".../" .. out
+		if out:sub(1, 4) ~= ".../" then
+			out = ".../" .. out
+		end
 	elseif #out > max then
 		out = out:sub(#out - max + 1)
 		out = "..." .. out:sub(4)
