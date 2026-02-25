@@ -173,6 +173,7 @@ Timeline
 When viewing a report:
 - Press `q` to close the report buffer
 - Press `t` to toggle the timeline section (show/hide recent spans)
+- Press `<CR>` (Enter) on any span line to jump to its source file at the recorded line number
 
 ## How It Works
 
