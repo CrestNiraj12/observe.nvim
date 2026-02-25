@@ -2,18 +2,33 @@ local constants = require("observe.constants")
 
 local M = {}
 
---- Clean + loosely truncate a path for display.
+---Render line with line number
+---@param src string
+---@param line integer
+---@return string
+function M.get_formatted_line(src, line)
+	return string.format("%s:%d", src, line)
+end
+
+--- Strip debug prefixes from source
+---@param src string
+---@return string
+function M.clean_src(src)
+	local path = src:gsub("^[@=]", ""):gsub("\\", "/")
+	return path
+end
+
+--- Loosely truncate a path for display.
 ---@param raw string
 ---@return string
-function M.clean_src(raw)
+function M.truncate_src(raw)
 	local max = constants.MAX_SOURCE_WIDTH
 
 	if type(raw) ~= "string" or raw == "" then
 		return "?"
 	end
 
-	-- 1) strip debug prefixes
-	local src = raw:gsub("^[@=]", ""):gsub("\\", "/")
+	local src = M.clean_src(raw)
 
 	-- 2) drop everything up to and including "/nvim/"
 	do
@@ -65,6 +80,59 @@ function M.clean_src(raw)
 	end
 
 	return out
+end
+
+local function is_real_editing_window(win, report_buf)
+	if not vim.api.nvim_win_is_valid(win) then
+		return false
+	end
+
+	local buf = vim.api.nvim_win_get_buf(win)
+	if buf == report_buf then
+		return false
+	end
+
+	local bt = vim.bo[buf].buftype
+	if bt ~= "" then
+		-- "" means normal file buffer
+		return false
+	end
+
+	return true
+end
+
+local function get_target_win(report_win, report_buf)
+	-- Prefer previous window in this tabpage
+	local prev = vim.fn.win_getid(vim.fn.winnr("#"))
+	if is_real_editing_window(prev, report_buf) then
+		return prev
+	end
+
+	-- Otherwise pick any window in current tab that isn't the report window
+	local tabwins = vim.api.nvim_tabpage_list_wins(0)
+	for _, win in ipairs(tabwins) do
+		if win ~= report_win and vim.api.nvim_win_get_buf(win) ~= report_buf then
+			return win
+		end
+	end
+
+	-- Fallback: create a split and use it
+	vim.cmd("belowright split")
+	return vim.api.nvim_get_current_win()
+end
+
+function M.open_location_enter(report_buf, source)
+	local file, ln = source:match("^(.*):(%d+)$")
+	file = file or source
+
+	local report_win = vim.api.nvim_get_current_win()
+	local target_win = get_target_win(report_win, report_buf)
+
+	vim.api.nvim_set_current_win(target_win)
+	vim.cmd("keepalt keepjumps edit " .. vim.fn.fnameescape(file))
+	if ln then
+		vim.api.nvim_win_set_cursor(target_win, { tonumber(ln), 0 })
+	end
 end
 
 return M
