@@ -113,18 +113,21 @@ end
 local function set_lines(buf, lines)
 	vim.bo[buf].modifiable = true
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.bo[buf].modifiable = false
+
+	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+	source_marks = {}
 
 	local marks = view.get_extmarks()
 	if marks then
-		for i, line in ipairs(lines) do
-			if line:match("([^:%s]+):(%d+)") then
+		for i = 1, #lines do
+			local src = marks[i]
+			if src and src ~= "" then
 				local ext = vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, {})
-				source_marks[ext] = marks[i]
+				source_marks[ext] = src
 			end
 		end
 	end
-
-	vim.bo[buf].modifiable = false
 
 	apply_highlights(buf, lines)
 end
