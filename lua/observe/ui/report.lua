@@ -83,7 +83,7 @@ local function ensure_buf()
 	vim.keymap.set("n", "<CR>", function()
 		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
 
-		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns, { row, 0 }, { row + 1, 0 }, {})
+		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns, { row, 0 }, { row, -1 }, {})
 		if #marks == 0 then
 			return
 		end
