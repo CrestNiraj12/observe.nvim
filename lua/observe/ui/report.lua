@@ -1,11 +1,17 @@
 local store = require("observe.core.store")
 local view = require("observe.ui.view")
-
-local M = {}
+local path_utils = require("observe.utils.path")
 
 local REPORT_NAME = "observe://report"
 local REPORT_FILETYPE = "observe-report"
+local ns = vim.api.nvim_create_namespace(REPORT_FILETYPE)
+local ns_hl = vim.api.nvim_create_namespace(REPORT_FILETYPE .. "-hl")
+
+local M = {}
+
 local report_buf ---@type integer?
+-- key - extmark id, value - source path
+local source_marks = {} ---@type table<integer, string>
 
 ---Set highlights
 local function ensure_highlights()
@@ -15,13 +21,12 @@ end
 
 ---Apply highlights to buffer
 local function apply_highlights(buf, lines)
-	local ns = vim.api.nvim_create_namespace(REPORT_FILETYPE)
-	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+	vim.api.nvim_buf_clear_namespace(buf, ns_hl, 0, -1)
 
 	for i, line in ipairs(lines) do
 		local ln = i - 1
 		if ln == 0 then
-			vim.api.nvim_buf_set_extmark(buf, ns, ln, 0, {
+			vim.api.nvim_buf_set_extmark(buf, ns_hl, ln, 0, {
 				end_col = #line,
 				hl_group = "ObserveTitle",
 			})
@@ -30,7 +35,7 @@ local function apply_highlights(buf, lines)
 		if line:find("Timeline", 1, true) then
 			local start_col = line:find("%(.-%)")
 			if start_col then
-				vim.api.nvim_buf_set_extmark(buf, ns, ln, start_col - 1, {
+				vim.api.nvim_buf_set_extmark(buf, ns_hl, ln, start_col - 1, {
 					end_col = #line,
 					hl_group = "ObserveMuted",
 				})
@@ -51,7 +56,7 @@ local function ensure_buf()
 	report_buf = buf
 	vim.api.nvim_buf_set_name(buf, REPORT_NAME)
 	vim.bo[buf].buftype = "nofile"
-	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].bufhidden = "hide"
 	vim.bo[buf].swapfile = false
 	vim.bo[buf].modifiable = false
 	vim.bo[buf].filetype = REPORT_FILETYPE
@@ -75,6 +80,31 @@ local function ensure_buf()
 		M.toggle_timeline()
 	end, { buffer = buf, desc = "Toggle timeline in report" })
 
+	vim.keymap.set("n", "<CR>", function()
+		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+
+		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns, { row, 0 }, { row, -1 }, {})
+		if #marks == 0 then
+			return
+		end
+
+		local id
+		for _, m in ipairs(marks) do
+			local mid = m[1]
+			if source_marks[mid] ~= nil then
+				id = mid
+				break
+			end
+		end
+
+		if not id then
+			return
+		end
+
+		local source = source_marks[id]
+		path_utils.open_location_enter(report_buf, source)
+	end, { buffer = buf, desc = "Open source file" })
+
 	return buf
 end
 
@@ -84,6 +114,20 @@ local function set_lines(buf, lines)
 	vim.bo[buf].modifiable = true
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	vim.bo[buf].modifiable = false
+
+	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+	source_marks = {}
+
+	local marks = view.get_extmarks()
+	if marks then
+		for i = 1, #lines do
+			local src = marks[i]
+			if src and src ~= "" then
+				local ext = vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, {})
+				source_marks[ext] = src
+			end
+		end
+	end
 
 	apply_highlights(buf, lines)
 end

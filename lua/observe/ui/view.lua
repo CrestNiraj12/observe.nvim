@@ -8,12 +8,18 @@ local M = {}
 
 ---@class ReportUIState: TimelineViewState
 ---@field show_timeline boolean
+---@field extmarks table<integer, string>
 
 ---@type ReportUIState
 local state = {
 	show_timeline = false,
 	max_timeline_spans = 50,
+	extmarks = {},
 }
+
+function M.get_extmarks()
+	return state.extmarks
+end
 
 ---Configure view state
 ---@param opts TimelineViewState
@@ -28,25 +34,30 @@ function M.toggle_timeline_view()
 	state.show_timeline = not state.show_timeline
 end
 
+---@class RenderLineMeta
+---@field line string
+---@field source? string
+
 ---Render top 10 slowest spans
 ---@param spans ObserveSpan[]
----@return string[]
+---@return RenderLineMeta[]
 local function render_top_slow_spans(spans)
-	local lines = {}
-	lines[#lines + 1] = ""
+	local lines = {} ---@type RenderLineMeta[]
+	lines[#lines + 1] = { line = "" }
 
 	local header = "Top slow spans"
-	lines[#lines + 1] = header
-	lines[#lines + 1] = string.rep("-", #header)
+	lines[#lines + 1] = { line = header }
+	lines[#lines + 1] = { line = string.rep("-", #header) }
 
-	local spans_copy = vim.tbl_extend("force", {}, spans)
+	local spans_copy = vim.tbl_extend("force", {}, spans) ---@type ObserveSpan[]
 	table.sort(spans_copy, function(a, b)
 		return (a.duration_ns or 0) > (b.duration_ns or 0)
 	end)
 
 	for i = 1, math.min(10, #spans_copy) do
 		local span = spans_copy[i]
-		lines[#lines + 1] = utils.format_info(span)
+		local index = #lines + 1
+		lines[index] = { line = utils.format_info(span), source = span.meta and span.meta.full_source }
 	end
 	return lines
 end
@@ -54,16 +65,20 @@ end
 ---Render top 10 total durations by source or name
 ---@param spans ObserveSpan[]
 ---@param key "source" | "name"
----@return string[]
+---@return RenderLineMeta[]
 local function render_total_duration_by_filter(spans, key)
-	local lines = {}
-	lines[#lines + 1] = ""
+	local lines = {} ---@type RenderLineMeta[]
+	lines[#lines + 1] = { line = "" }
 
 	local header = "Top totals by " .. key
-	lines[#lines + 1] = header
-	lines[#lines + 1] = string.rep("-", #header)
+	lines[#lines + 1] = { line = header }
+	lines[#lines + 1] = { line = string.rep("-", #header) }
 
-	local merged_by_filter = {} ---@type table<string, integer>
+	---@class MergeMeta
+	---@field duration integer
+	---@field source string?
+
+	local merged_by_filter = {} ---@type table<string, MergeMeta>
 	if key ~= "source" and key ~= "name" then
 		key = "source" -- set default filter as source
 	end
@@ -77,16 +92,20 @@ local function render_total_duration_by_filter(spans, key)
 			data = span.meta and span.meta[key] or "?"
 		end
 
-		merged_by_filter[data] = (merged_by_filter[data] or 0) + (span.duration_ns or 0)
+		merged_by_filter[data] = {
+			duration = ((merged_by_filter[data] or {}).duration or 0) + (span.duration_ns or 0),
+			source = span.meta and span.meta.full_source,
+		}
 	end
 
 	---@class TotalByKey
 	---@field key string
 	---@field duration integer
+	---@field source string?
 
 	local totals_by_key = {} ---@type TotalByKey[]
 	for k, v in pairs(merged_by_filter) do
-		totals_by_key[#totals_by_key + 1] = { key = k, duration = v }
+		totals_by_key[#totals_by_key + 1] = { key = k, duration = v.duration, source = v.source }
 	end
 
 	table.sort(totals_by_key, function(a, b)
@@ -94,16 +113,17 @@ local function render_total_duration_by_filter(spans, key)
 	end)
 
 	for i = 1, math.min(10, #totals_by_key) do
-		local span = totals_by_key[i]
-		local ms = utils.ns_to_ms(span.duration)
-		lines[#lines + 1] = string.format("%s\t%s", utils.render_timestamp(ms), span.key)
+		local merge_meta = totals_by_key[i]
+		local ms = utils.ns_to_ms(merge_meta.duration)
+		lines[#lines + 1] =
+			{ line = string.format("%s\t%s", utils.render_timestamp(ms), merge_meta.key), source = merge_meta.source }
 	end
 	return lines
 end
 
 ---Render recent spans (up to max_timeline_spans, default 50)
 ---@param spans ObserveSpan[]
----@return string[]
+---@return RenderLineMeta[]
 local function render_timeline(spans)
 	local lines = {}
 
@@ -113,15 +133,16 @@ local function render_timeline(spans)
 		header_with_hint = header_with_hint .. " (press t to reveal)"
 	end
 
-	lines[#lines + 1] = ""
-	lines[#lines + 1] = header_with_hint
+	lines[#lines + 1] = { line = "" }
+	lines[#lines + 1] = { line = header_with_hint }
 
 	if state.show_timeline then
-		lines[#lines + 1] = string.rep("-", #timeline_header)
+		lines[#lines + 1] = { line = string.rep("-", #timeline_header) }
 		local start_i = math.max(1, #spans - state.max_timeline_spans + 1)
 		for i = start_i, #spans do
 			local span = spans[i]
-			lines[#lines + 1] = utils.format_info(span)
+			local index = #lines + 1
+			lines[index] = { line = utils.format_info(span), source = span.meta and span.meta.full_source }
 		end
 	end
 
@@ -132,7 +153,9 @@ end
 ---@param spans ObserveSpan[]
 ---@return string[]
 function M.render(spans)
+	state.extmarks = {}
 	local lines = {}
+
 	lines[#lines + 1] = constants.PLUGIN_NAME .. " --- Report"
 	lines[#lines + 1] = string.rep("-", #lines[1])
 
@@ -149,24 +172,19 @@ function M.render(spans)
 		return lines
 	end
 
-	local top_slow_spans = render_top_slow_spans(spans)
-	for _, v in ipairs(top_slow_spans) do
-		lines[#lines + 1] = v
-	end
+	local categories = {
+		render_top_slow_spans(spans),
+		render_total_duration_by_filter(spans, "source"),
+		render_total_duration_by_filter(spans, "name"),
+		render_timeline(spans),
+	}
 
-	local total_by_duration = render_total_duration_by_filter(spans, "source")
-	for _, v in ipairs(total_by_duration) do
-		lines[#lines + 1] = v
-	end
-
-	local total_by_event = render_total_duration_by_filter(spans, "name")
-	for _, v in ipairs(total_by_event) do
-		lines[#lines + 1] = v
-	end
-
-	local timeline = render_timeline(spans)
-	for _, v in ipairs(timeline) do
-		lines[#lines + 1] = v
+	for _, category in ipairs(categories) do
+		for _, v in ipairs(category) do
+			local index = #lines + 1
+			lines[index] = v.line
+			state.extmarks[index] = v.source
+		end
 	end
 
 	lines[#lines + 1] = ""

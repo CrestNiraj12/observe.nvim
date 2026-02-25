@@ -13,28 +13,51 @@ local M = {}
 local original_create_autocmd = vim.api.nvim_create_autocmd
 local patched = false
 
+---@class SourceLabel
+---@field label string
+---@field source? string
+
 ---Find the callback source and line number if possible
 ---and return it
 ---@param cb any
----@return string
+---@return SourceLabel
 local function callback_label(cb)
 	if type(cb) == "function" then
 		local info = debug.getinfo(cb, "Sln")
 		if info then
 			local src = info.short_src or info.source or "?"
-			local truncated_src = path_utils.clean_src(src)
+			local truncated_src = path_utils.truncate_src(src)
 			local line = info.linedefined or 0
-			return string.format("%s:%d", truncated_src, line)
+
+			local full_source = nil
+			if info.source and info.source:sub(1, 1) == "@" then
+				local source = path_utils.clean_src(info.source)
+				full_source = path_utils.get_formatted_line(source, line)
+			end
+
+			return {
+				label = path_utils.get_formatted_line(truncated_src, line),
+				source = full_source,
+			}
 		end
-		return "function"
+		return { label = "function" }
 	end
 
 	if type(cb) == "string" then
-		return "cmd"
+		return { label = "cmd" }
 	end
 
-	return "unknown"
+	return { label = "unknown" }
 end
+
+---@class Meta
+---@field group string|integer
+---@field pattern string|string[]
+---@field once boolean
+---@field nested boolean
+---@field source string?
+---@field full_source string?
+---@field cmd string?
 
 ---Observe the callback time
 ---@param event any
@@ -46,9 +69,11 @@ local function wrap_callback(event, opts)
 		return nil
 	end
 
-	local label = callback_label(cb)
+	local source_label = callback_label(cb)
 	local ev = type(event) == "table" and table.concat(event, ",") or tostring(event)
 	local name = "autocmd: " .. ev
+
+	---@type Meta
 	local meta = {
 		group = opts.group,
 		pattern = opts.pattern,
@@ -62,7 +87,8 @@ local function wrap_callback(event, opts)
 				return cb(...)
 			end
 
-			meta.source = label
+			meta.source = source_label.label
+			meta.full_source = source_label.source
 			local h = store.begin_span(name, meta)
 
 			local ok, result = pcall(cb, ...)
