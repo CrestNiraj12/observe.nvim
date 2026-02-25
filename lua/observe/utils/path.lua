@@ -111,7 +111,7 @@ local function get_target_win(report_win, report_buf)
 	-- Otherwise pick any window in current tab that isn't the report window
 	local tabwins = vim.api.nvim_tabpage_list_wins(0)
 	for _, win in ipairs(tabwins) do
-		if win ~= report_win and vim.api.nvim_win_get_buf(win) ~= report_buf then
+		if win ~= report_win and is_real_editing_window(win) then
 			return win
 		end
 	end

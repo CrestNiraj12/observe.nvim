@@ -28,9 +28,16 @@ local function callback_label(cb)
 			local src = info.short_src or info.source or "?"
 			local truncated_src = path_utils.truncate_src(src)
 			local line = info.linedefined or 0
+
+			local full_source = nil
+			if info.source and info.source:sub(1, 1) == "@" then
+				local source = path_utils.clean_src(info.source)
+				full_source = path_utils.get_formatted_line(source, line)
+			end
+
 			return {
 				label = path_utils.get_formatted_line(truncated_src, line),
-				source = path_utils.get_formatted_line(path_utils.clean_src(info.source), line),
+				source = full_source,
 			}
 		end
 		return { label = "function" }

@@ -76,7 +76,7 @@ local function render_total_duration_by_filter(spans, key)
 
 	---@class MergeMeta
 	---@field duration integer
-	---@field source string
+	---@field source string?
 
 	local merged_by_filter = {} ---@type table<string, MergeMeta>
 	if key ~= "source" and key ~= "name" then
@@ -94,14 +94,14 @@ local function render_total_duration_by_filter(spans, key)
 
 		merged_by_filter[data] = {
 			duration = ((merged_by_filter[data] or {}).duration or 0) + (span.duration_ns or 0),
-			source = span.meta.full_source,
+			source = span.meta and span.meta.full_source,
 		}
 	end
 
 	---@class TotalByKey
 	---@field key string
 	---@field duration integer
-	---@field source string
+	---@field source string?
 
 	local totals_by_key = {} ---@type TotalByKey[]
 	for k, v in pairs(merged_by_filter) do
@@ -142,7 +142,7 @@ local function render_timeline(spans)
 		for i = start_i, #spans do
 			local span = spans[i]
 			local index = #lines + 1
-			lines[index] = { line = utils.format_info(span), source = span.meta.full_source }
+			lines[index] = { line = utils.format_info(span), source = span.meta and span.meta.full_source }
 		end
 	end
 
