@@ -25,15 +25,3 @@ create_command("ObserveToggle", function()
 		obs.start()
 	end
 end, {})
-
-create_command("ObserveTestSpan", function()
-	local store = require("observe.core.store")
-	store.time("test: busy loop", function()
-		local x = 1
-		for i = 1, 2e6 do
-			x = x + i
-		end
-		return x
-	end)
-	vim.notify("observe: test span recorded", vim.log.levels.INFO)
-end, {})
