@@ -36,7 +36,7 @@
 
 ---@class Meta
 ---@field type HandlerType
----@field kind string
+---@field kind string?
 ---@field source string
 ---@field full_source string?
 
