@@ -3,7 +3,7 @@ local constants = require("observe.constants")
 local M = {}
 
 ---@class ObserveConfig
----@field adapters table<string, boolean>?
+---@field adapters table<HandlerType, boolean>?
 ---@field max_spans integer?
 ---@field max_timeline_spans integer?
 

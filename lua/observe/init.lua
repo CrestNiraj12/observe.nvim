@@ -19,6 +19,7 @@ function M.setup(opts)
 	state.config = config.merge(opts)
 	store.configure({ max_spans = state.config.max_spans })
 	view.configure({ max_timeline_spans = state.config.max_timeline_spans })
+	adapters.configure(state.config.adapters)
 end
 
 ---Start tracing

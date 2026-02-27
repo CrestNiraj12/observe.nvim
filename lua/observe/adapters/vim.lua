@@ -65,16 +65,17 @@ end
 
 ---Patch vim callback for async commands like schedule, defer_fn etc
 ---@param cb function
----@param type string
+---@param kind string
 ---@return function
-local function wrap_async_callback(cb, type)
+local function wrap_async_callback(cb, kind)
 	local info = path_utils.determine_source()
 	local parent_id = store.get_parent_id()
 
 	return function(...)
 		---@type Meta
 		local meta = {
-			type = type,
+			type = "async_cmd",
+			kind = kind,
 			source = path_utils.get_formatted_line(info.truncated_source, info.current_line),
 			full_source = path_utils.get_formatted_line(info.full_source, info.current_line),
 		}

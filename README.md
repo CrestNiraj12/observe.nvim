@@ -6,7 +6,7 @@ A performance profiling plugin for Neovim that helps you trace and measure the e
 
 ## Features
 
-- **Autocmd Profiling**: Automatically traces the execution time of autocommand callbacks
+- **Adapters for Autocmd, LSP, and Vim Functions**: Enjoy broader tracing capabilities using our modular adapter system.
 - **Custom Span Tracking**: Measure execution time of specific code blocks using the `time()` API
 - **Real-time Report**: View performance metrics with a dedicated report buffer
 - **Minimal Overhead**: Only records spans when explicitly started
@@ -96,12 +96,12 @@ end)
 local store = require('observe.core.store')
 
 -- Begin a span
-local span = store.begin_span('operation name', { custom = 'metadata' })
+store.begin_span('operation name', { custom = 'metadata' })
 
 -- Do work...
 
 -- Finish the span
-store.finish_span(span)
+store.finish_span()
 ```
 
 #### Check if observe is enabled

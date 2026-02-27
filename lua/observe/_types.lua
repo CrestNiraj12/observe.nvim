@@ -36,6 +36,7 @@
 
 ---@class Meta
 ---@field type HandlerType
+---@field kind string
 ---@field source string
 ---@field full_source string?
 
@@ -74,7 +75,7 @@
 ---@field duration integer
 ---@field source string?
 
----@alias HandlerType "autocmd"|"lsp"|"cmd"|"schedule"
+---@alias HandlerType "autocmd"|"lsp"|"cmd"|"async_cmd"
 
 ---@class DebugInfo
 ---@field line_defined integer
