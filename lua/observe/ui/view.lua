@@ -3,13 +3,6 @@ local utils = require("observe.utils.metadata")
 
 local M = {}
 
----@class TimelineViewState
----@field max_timeline_spans integer
-
----@class ReportUIState: TimelineViewState
----@field show_timeline boolean
----@field extmarks table<integer, string>
-
 ---@type ReportUIState
 local state = {
 	show_timeline = false,
@@ -17,6 +10,8 @@ local state = {
 	extmarks = {},
 }
 
+---Get current extmarks for rendered lines, used for source preview on line hover
+---@return table<integer, string>
 function M.get_extmarks()
 	return state.extmarks
 end
@@ -33,10 +28,6 @@ end
 function M.toggle_timeline_view()
 	state.show_timeline = not state.show_timeline
 end
-
----@class RenderLineMeta
----@field line string
----@field source? string
 
 ---Render top 10 slowest spans
 ---@param spans ObserveSpan[]
@@ -62,11 +53,11 @@ local function render_top_slow_spans(spans)
 	return lines
 end
 
----Render top 10 total durations by source or name
+---Render top 10 total durations by span or span.meta key
 ---@param spans ObserveSpan[]
----@param key "source" | "name"
+---@param key string
 ---@return RenderLineMeta[]
-local function render_total_duration_by_filter(spans, key)
+local function render_total_duration_by_key(spans, key)
 	local lines = {} ---@type RenderLineMeta[]
 	lines[#lines + 1] = { line = "" }
 
@@ -74,38 +65,47 @@ local function render_total_duration_by_filter(spans, key)
 	lines[#lines + 1] = { line = header }
 	lines[#lines + 1] = { line = string.rep("-", #header) }
 
-	---@class MergeMeta
-	---@field duration integer
-	---@field source string?
-
 	local merged_by_filter = {} ---@type table<string, MergeMeta>
-	if key ~= "source" and key ~= "name" then
-		key = "source" -- set default filter as source
-	end
 
 	for _, span in ipairs(spans) do
-		local data
+		local data, val
 
-		if key == "name" then
-			data = span.name and span.name or "?"
+		if span[key] ~= nil then
+			val = span[key]
+			if type(val) ~= "string" then
+				val = tostring(val)
+			end
 		else
-			data = span.meta and span.meta[key] or "?"
+			val = span.meta[key]
+			if not val then
+				-- No key found inside span and span.meta
+				return {}
+			end
+
+			if type(val) ~= "string" then
+				val = tostring(val)
+			end
+		end
+		data = vim.trim(val)
+		data = data ~= "" and data or "?"
+
+		local splitted_name = vim.split(span.name, ":")
+
+		local type_label
+		if #splitted_name > 1 then
+			type_label = splitted_name[1]
 		end
 
 		merged_by_filter[data] = {
+			name = type_label or "?",
 			duration = ((merged_by_filter[data] or {}).duration or 0) + (span.duration_ns or 0),
 			source = span.meta and span.meta.full_source,
 		}
 	end
 
-	---@class TotalByKey
-	---@field key string
-	---@field duration integer
-	---@field source string?
-
 	local totals_by_key = {} ---@type TotalByKey[]
 	for k, v in pairs(merged_by_filter) do
-		totals_by_key[#totals_by_key + 1] = { key = k, duration = v.duration, source = v.source }
+		totals_by_key[#totals_by_key + 1] = { key = k, name = v.name, duration = v.duration, source = v.source }
 	end
 
 	table.sort(totals_by_key, function(a, b)
@@ -114,9 +114,16 @@ local function render_total_duration_by_filter(spans, key)
 
 	for i = 1, math.min(10, #totals_by_key) do
 		local merge_meta = totals_by_key[i]
+		local label = ""
+		if key ~= "name" then
+			label = merge_meta.name .. ": "
+		end
+
 		local ms = utils.ns_to_ms(merge_meta.duration)
-		lines[#lines + 1] =
-			{ line = string.format("%s\t%s", utils.render_timestamp(ms), merge_meta.key), source = merge_meta.source }
+		lines[#lines + 1] = {
+			line = string.format("%s %s%s", utils.render_timestamp(ms), label, merge_meta.key),
+			source = merge_meta.source,
+		}
 	end
 	return lines
 end
@@ -174,8 +181,8 @@ function M.render(spans)
 
 	local categories = {
 		render_top_slow_spans(spans),
-		render_total_duration_by_filter(spans, "source"),
-		render_total_duration_by_filter(spans, "name"),
+		render_total_duration_by_key(spans, "source"),
+		render_total_duration_by_key(spans, "name"),
 		render_timeline(spans),
 	}
 

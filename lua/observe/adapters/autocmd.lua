@@ -3,19 +3,8 @@ local path_utils = require("observe.utils.path")
 
 local M = {}
 
----@class CreateAutocmdOpts
----@field callback function|string?
----@field pattern string|string[]?
----@field group string|integer?
----@field once boolean?
----@field nested boolean?
-
 local original_create_autocmd = vim.api.nvim_create_autocmd
 local patched = false
-
----@class SourceLabel
----@field label string
----@field source? string
 
 ---Find the callback source and line number if possible
 ---and return it
@@ -23,24 +12,16 @@ local patched = false
 ---@return SourceLabel
 local function callback_label(cb)
 	if type(cb) == "function" then
-		local info = debug.getinfo(cb, "Sln")
-		if info then
-			local src = info.short_src or info.source or "?"
-			local truncated_src = path_utils.truncate_src(src)
-			local line = info.linedefined or 0
-
-			local full_source = nil
-			if info.source and info.source:sub(1, 1) == "@" then
-				local source = path_utils.clean_src(info.source)
-				full_source = path_utils.get_formatted_line(source, line)
-			end
-
-			return {
-				label = path_utils.get_formatted_line(truncated_src, line),
-				source = full_source,
-			}
+		local info = path_utils.determine_source()
+		local label = "function"
+		if info.truncated_source then
+			label = path_utils.get_formatted_line(info.truncated_source, info.line_defined)
 		end
-		return { label = "function" }
+
+		return {
+			label = label,
+			source = path_utils.get_formatted_line(info.truncated_source, info.line_defined),
+		}
 	end
 
 	if type(cb) == "string" then
@@ -49,15 +30,6 @@ local function callback_label(cb)
 
 	return { label = "unknown" }
 end
-
----@class Meta
----@field group string|integer
----@field pattern string|string[]
----@field once boolean
----@field nested boolean
----@field source string?
----@field full_source string?
----@field cmd string?
 
 ---Observe the callback time
 ---@param event any
@@ -71,14 +43,16 @@ local function wrap_callback(event, opts)
 
 	local source_label = callback_label(cb)
 	local ev = type(event) == "table" and table.concat(event, ",") or tostring(event)
-	local name = "autocmd: " .. ev
+	local name = string.format("%s: %s", "Autocmd", ev)
 
-	---@type Meta
+	---@type AutocmdMeta
 	local meta = {
 		group = opts.group,
 		pattern = opts.pattern,
 		once = opts.once,
 		nested = opts.nested,
+		type = "autocmd",
+		source = "?",
 	}
 
 	if type(cb) == "function" then
@@ -89,10 +63,10 @@ local function wrap_callback(event, opts)
 
 			meta.source = source_label.label
 			meta.full_source = source_label.source
-			local h = store.begin_span(name, meta)
+			store.begin_span(name, meta)
 
 			local ok, result = pcall(cb, ...)
-			store.finish_span(h)
+			store.finish_span()
 
 			if not ok then
 				error(result, 0)
@@ -110,13 +84,13 @@ local function wrap_callback(event, opts)
 
 			meta.source = "cmd"
 			meta.cmd = cb
-			local h = store.begin_span(name, meta)
+			store.begin_span(name, meta)
 
 			local ok, result = pcall(function()
 				return vim.cmd(cb)
 			end)
 
-			store.finish_span(h)
+			store.finish_span()
 
 			if not ok then
 				error(result, 0)
@@ -142,6 +116,7 @@ local function patched_create_autocmd(event, opts)
 	return original_create_autocmd(event, opts)
 end
 
+---Enable autocmd patching to trace autocmd callbacks
 function M.enable()
 	if patched then
 		return
@@ -151,6 +126,7 @@ function M.enable()
 	vim.api.nvim_create_autocmd = patched_create_autocmd
 end
 
+---Disable autocmd patching and restore original functions
 function M.disable()
 	if not patched then
 		return

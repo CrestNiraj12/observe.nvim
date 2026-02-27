@@ -135,4 +135,39 @@ function M.open_location_enter(report_buf, source)
 	end
 end
 
+---Get truncated and full source of command from debug info
+---@return DebugInfo
+function M.determine_source()
+	local info, source
+	for i = 2, 20 do
+		info = debug.getinfo(i, "Sl")
+		if not info then
+			break
+		end
+
+		if info.source and source:sub(1, 1) == "@" then
+			source = M.clean_src(info.source)
+		end
+
+		if source and source ~= "" and source ~= "[C]" and not source:find("observe/", 1, true) then
+			break
+		end
+	end
+
+	local truncated_src ---@type string|nil
+	local full_source ---@type string|nil
+
+	if info then
+		local src = info.short_src or source or "?"
+		truncated_src = M.truncate_src(src)
+	end
+
+	return {
+		line_defined = info.linedefined,
+		current_line = info.currentline,
+		truncated_source = truncated_src,
+		full_source = full_source,
+	}
+end
+
 return M
