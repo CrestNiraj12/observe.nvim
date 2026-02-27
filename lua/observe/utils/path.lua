@@ -135,6 +135,25 @@ function M.open_location_enter(report_buf, source)
 	end
 end
 
+local function is_noise_source(src)
+	if not src or src == "" or src == "[C]" then
+		return true
+	end
+	-- your plugin
+	if src:find("/observe", 1, true) then
+		return true
+	end
+	-- neovim runtime lua
+	if src:find("/lua/vim/", 1, true) then
+		return true
+	end
+	-- also runtime vimscript-ish
+	if src:find("$VIMRUNTIME", 1, true) then
+		return true
+	end
+	return false
+end
+
 ---Get truncated and full source of command from debug info
 ---@return DebugInfo
 function M.determine_source()
@@ -145,17 +164,16 @@ function M.determine_source()
 			break
 		end
 
-		if info.source and source:sub(1, 1) == "@" then
+		if info.source and info.source:sub(1, 1) == "@" then
 			source = M.clean_src(info.source)
 		end
 
-		if source and source ~= "" and source ~= "[C]" and not source:find("observe/", 1, true) then
+		if not is_noise_source(source) then
 			break
 		end
 	end
 
 	local truncated_src ---@type string|nil
-	local full_source ---@type string|nil
 
 	if info then
 		local src = info.short_src or source or "?"
@@ -163,10 +181,10 @@ function M.determine_source()
 	end
 
 	return {
-		line_defined = info.linedefined,
-		current_line = info.currentline,
+		line_defined = info and info.linedefined or nil,
+		current_line = info and info.currentline or nil,
 		truncated_source = truncated_src,
-		full_source = full_source,
+		full_source = source,
 	}
 end
 

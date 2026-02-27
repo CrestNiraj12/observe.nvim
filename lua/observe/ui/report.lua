@@ -1,17 +1,16 @@
 local store = require("observe.core.store")
 local view = require("observe.ui.view")
 local path_utils = require("observe.utils.path")
+local extmarks = require("observe.utils.extmarks")
 
 local REPORT_NAME = "observe://report"
 local REPORT_FILETYPE = "observe-report"
-local ns = vim.api.nvim_create_namespace(REPORT_FILETYPE)
+local ns_marks = vim.api.nvim_create_namespace(REPORT_FILETYPE)
 local ns_hl = vim.api.nvim_create_namespace(REPORT_FILETYPE .. "-hl")
 
 local M = {}
 
 local report_buf ---@type integer?
--- key - extmark id, value - source path
-local source_marks = {} ---@type table<integer, string>
 
 ---Set highlights
 local function ensure_highlights()
@@ -83,11 +82,28 @@ local function ensure_buf()
 	vim.keymap.set("n", "<CR>", function()
 		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
 
-		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns, { row, 0 }, { row, -1 }, {})
+		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns_marks, { row, 0 }, { row, -1 }, {})
 		if #marks == 0 then
 			return
 		end
 
+		local info = extmarks.get_extmark_data(marks)
+		if not info or not info.source then
+			return
+		end
+
+		path_utils.open_location_enter(report_buf, info.source)
+	end, { buffer = buf, desc = "Open source file" })
+
+	vim.keymap.set("n", "e", function()
+		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+
+		local marks = vim.api.nvim_buf_get_extmarks(report_buf, ns_marks, { row, 0 }, { row, -1 }, {})
+		if #marks == 0 then
+			return
+		end
+
+		local source_marks = store.get_marks()
 		local id
 		for _, m in ipairs(marks) do
 			local mid = m[1]
@@ -101,10 +117,13 @@ local function ensure_buf()
 			return
 		end
 
-		local source = source_marks[id]
-		path_utils.open_location_enter(report_buf, source)
-	end, { buffer = buf, desc = "Open source file" })
+		local info = source_marks[id]
+		if not info then
+			return
+		end
 
+		M.toggle_span_and_render(info.span_id)
+	end, { buffer = buf, desc = "Open source file" })
 	return buf
 end
 
@@ -115,16 +134,21 @@ local function set_lines(buf, lines)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	vim.bo[buf].modifiable = false
 
-	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
-	source_marks = {}
+	vim.api.nvim_buf_clear_namespace(buf, ns_marks, 0, -1)
 
 	local marks = view.get_extmarks()
 	if marks then
 		for i = 1, #lines do
-			local src = marks[i]
-			if src and src ~= "" then
-				local ext = vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, {})
-				source_marks[ext] = src
+			local info = marks[i]
+			if info then
+				local ext = vim.api.nvim_buf_set_extmark(buf, ns_marks, i - 1, 0, {})
+				local src
+				if info.source and info.source ~= "" then
+					src = info.source
+				end
+
+				local data = { source = src, span_id = info.span_id }
+				store.set_mark(ext, data)
 			end
 		end
 	end
@@ -196,6 +220,23 @@ function M.toggle_timeline()
 	local max_topline = math.max(1, #lines - height + 1)
 	saved_view.topline = math.min(saved_view.topline, max_topline)
 
+	vim.fn.winrestview(saved_view)
+end
+
+---Toggle span in timeline and render its child
+---@param span_id integer
+function M.toggle_span_and_render(span_id)
+	local buf = ensure_buf()
+	local cur_buf = vim.api.nvim_get_current_buf()
+
+	if cur_buf ~= buf then
+		return
+	end
+
+	local saved_view = vim.fn.winsaveview()
+	local spans = store.toggle_span_view(span_id)
+	local lines = view.render(spans)
+	set_lines(buf, lines)
 	vim.fn.winrestview(saved_view)
 end
 

@@ -1,146 +1,117 @@
+---@diagnostic disable: duplicate-set-field
+
 local store = require("observe.core.store")
 local path_utils = require("observe.utils.path")
 
 local M = {}
-
 local patched = false
 
-local original_vim_cmd = vim.cmd
-local original_vim_schedule = vim.schedule
-local original_vim_defer_fn = vim.defer_fn
+local orig_nvim_command = vim.api.nvim_command
+local orig_nvim_cmd = vim.api.nvim_cmd
+local orig_schedule = vim.schedule
+local orig_defer_fn = vim.defer_fn
 
----Patch vim.cmd
----@param cb function|table|unknown
-local function wrap_callback(cb, ...)
+local function wrap_callback(cb, kind, ...)
 	local parent_id = store.get_parent_id()
 	local info = path_utils.determine_source()
 
-	---@type CmdMeta
 	local meta = {
 		type = "cmd",
+		kind = kind, -- "nvim_command" | "nvim_cmd"
 		source = path_utils.get_formatted_line(info.truncated_source, info.current_line),
 		full_source = path_utils.get_formatted_line(info.full_source, info.current_line),
-		cmd = "vim.cmd",
 	}
 
-	local args = ...
-	if type(args) == "string" then
-		local sep_index = vim.trim(args):find(" ")
-		meta.cmd = sep_index and args:sub(1, sep_index - 1) or args
-		if sep_index and sep_index + 1 <= #args then
-			meta.args = args:sub(sep_index + 1, -1)
-		end
-	elseif type(args) == "table" and args.cmd then
-		if args.cmd then
-			meta.cmd = args.cmd
-			if args.args then
-				if type(args.args) == "table" then
-					meta.args = table.concat(args.args, ", ")
-				else
-					meta.args = args.args
-				end
-			end
-		end
+	-- nice cmd name extraction
+	local args1 = ...
+	if type(args1) == "string" then
+		meta.cmd = args1:match("^%s*(%S+)") or "?"
+	elseif type(args1) == "table" and args1.cmd then
+		meta.cmd = args1.cmd
+	else
+		meta.cmd = kind
 	end
 
-	local name = string.format("%s: %s", "Cmd", meta.cmd)
-	store.begin_span(name, meta, parent_id)
+	store.begin_span(("Cmd: %s"):format(meta.cmd), meta, parent_id)
 
-	local results = { pcall(function(...)
-		return cb(...)
-	end, ...) }
+	local results = { pcall(cb, ...) }
 
 	store.finish_span()
-	local ok = table.remove(results, 1)
-	if #results <= 0 then
-		return nil
-	end
 
+	local ok = table.remove(results, 1)
 	if not ok then
 		error(results[1], 2)
 	end
-
 	return unpack(results)
 end
 
----Patch vim callback for async commands like schedule, defer_fn etc
----@param cb function
----@param kind string
----@return function
 local function wrap_async_callback(cb, kind)
 	local info = path_utils.determine_source()
 	local parent_id = store.get_parent_id()
 
 	return function(...)
-		---@type Meta
+		local source = "async_cmd"
+		if info.truncated_source and info.current_line then
+			source = path_utils.get_formatted_line(info.truncated_source, info.current_line)
+		end
+
+		local full_source
+		if info.full_source and info.current_line then
+			full_source = path_utils.get_formatted_line(info.full_source, info.current_line)
+		end
+
 		local meta = {
 			type = "async_cmd",
 			kind = kind,
-			source = path_utils.get_formatted_line(info.truncated_source, info.current_line),
-			full_source = path_utils.get_formatted_line(info.full_source, info.current_line),
+			source = source,
+			full_source = full_source,
 		}
 
-		local name = string.format("%s: %s", "Cmd", meta.source)
-		store.begin_span(name, meta, parent_id)
-
+		store.begin_span(("Async: %s"):format(kind), meta, parent_id)
 		local results = { pcall(cb, ...) }
-
 		store.finish_span()
-		local ok = table.remove(results, 1)
-		if #results <= 0 then
-			return nil
-		end
 
+		local ok = table.remove(results, 1)
 		if not ok then
 			error(results[1], 2)
 		end
-
 		return unpack(results)
 	end
 end
 
----Patch vim cmd with our tracing wrapper
----@return function|table|unknown
-local function patched_vim_cmd(...)
-	return wrap_callback(original_vim_cmd, ...)
-end
-
----Patch vim schedule callback with our tracing wrapper
----@param fn function
-local function patched_vim_schedule(fn)
-	return original_vim_schedule(wrap_async_callback(fn, "schedule"))
-end
-
----Patch vim schedule callback with our tracing wrapper
----@param fn function
----@param timeout integer
----@return table
-local function patched_vim_defer_fn(fn, timeout)
-	return original_vim_defer_fn(wrap_async_callback(fn, "defer_fn"), timeout)
-end
-
----Enable vim functions patching
 function M.enable()
 	if patched then
 		return
 	end
-
 	patched = true
-	vim.cmd = patched_vim_cmd
-	vim.schedule = patched_vim_schedule
-	vim.defer_fn = patched_vim_defer_fn
+
+	vim.api.nvim_command = function(cmd_string)
+		return wrap_callback(orig_nvim_command, "nvim_command", cmd_string)
+	end
+
+	vim.api.nvim_cmd = function(cmd_tbl, opts)
+		return wrap_callback(orig_nvim_cmd, "nvim_cmd", cmd_tbl, opts)
+	end
+
+	vim.schedule = function(fn)
+		return orig_schedule(wrap_async_callback(fn, "schedule"))
+	end
+
+	vim.defer_fn = function(fn, timeout)
+		return orig_defer_fn(wrap_async_callback(fn, "defer_fn"), timeout)
+	end
 end
 
----Disable vim functions patching
 function M.disable()
 	if not patched then
 		return
 	end
-
 	patched = false
-	vim.cmd = original_vim_cmd
-	vim.schedule = original_vim_schedule
-	vim.defer_fn = original_vim_defer_fn
+
+	vim.api.nvim_command = orig_nvim_command
+	vim.api.nvim_cmd = orig_nvim_cmd
+	vim.schedule = orig_schedule
+	vim.defer_fn = orig_defer_fn
 end
 
 return M

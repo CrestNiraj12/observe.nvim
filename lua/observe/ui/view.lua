@@ -6,12 +6,12 @@ local M = {}
 ---@type ReportUIState
 local state = {
 	show_timeline = false,
-	max_timeline_spans = 50,
+	max_timeline_spans = 0,
 	extmarks = {},
 }
 
 ---Get current extmarks for rendered lines, used for source preview on line hover
----@return table<integer, string>
+---@return table<integer, ExtInfo>
 function M.get_extmarks()
 	return state.extmarks
 end
@@ -48,7 +48,8 @@ local function render_top_slow_spans(spans)
 	for i = 1, math.min(10, #spans_copy) do
 		local span = spans_copy[i]
 		local index = #lines + 1
-		lines[index] = { line = utils.format_info(span), source = span.meta and span.meta.full_source }
+		lines[index] =
+			{ span_id = span.id, line = utils.format_info(span), source = span.meta and span.meta.full_source }
 	end
 	return lines
 end
@@ -97,6 +98,7 @@ local function render_total_duration_by_key(spans, key)
 		end
 
 		merged_by_filter[data] = {
+			span_id = span.id,
 			name = type_label or "?",
 			duration = ((merged_by_filter[data] or {}).duration or 0) + (span.duration_ns or 0),
 			source = span.meta and span.meta.full_source,
@@ -105,7 +107,8 @@ local function render_total_duration_by_key(spans, key)
 
 	local totals_by_key = {} ---@type TotalByKey[]
 	for k, v in pairs(merged_by_filter) do
-		totals_by_key[#totals_by_key + 1] = { key = k, name = v.name, duration = v.duration, source = v.source }
+		totals_by_key[#totals_by_key + 1] =
+			{ span_id = v.span_id, key = k, name = v.name, duration = v.duration, source = v.source }
 	end
 
 	table.sort(totals_by_key, function(a, b)
@@ -121,6 +124,7 @@ local function render_total_duration_by_key(spans, key)
 
 		local ms = utils.ns_to_ms(merge_meta.duration)
 		lines[#lines + 1] = {
+			span_id = merge_meta.span_id,
 			line = string.format("%s %s%s", utils.render_timestamp(ms), label, merge_meta.key),
 			source = merge_meta.source,
 		}
@@ -145,11 +149,71 @@ local function render_timeline(spans)
 
 	if state.show_timeline then
 		lines[#lines + 1] = { line = string.rep("-", #timeline_header) }
-		local start_i = math.max(1, #spans - state.max_timeline_spans + 1)
-		for i = start_i, #spans do
-			local span = spans[i]
-			local index = #lines + 1
-			lines[index] = { line = utils.format_info(span), source = span.meta and span.meta.full_source }
+
+		if #spans <= 0 then
+			lines[#lines + 1] = { line = "No spans recorded!" }
+			return lines
+		end
+
+		table.sort(spans, function(a, b)
+			return a.start_ns < b.start_ns
+		end)
+
+		local roots = {} ---@type integer[]
+		local children = {} ---@type table<integer, integer[]>
+		for i, v in ipairs(spans) do
+			if v.parent_id then
+				children[v.parent_id] = children[v.parent_id] or {}
+				table.insert(children[v.parent_id], i)
+			else
+				table.insert(roots, i)
+			end
+		end
+
+		local seen_ids = {}
+		for ri = 1, #roots do
+			local depth = 0
+			local root_si = roots[ri]
+			local stack = { root_si } -- stack of indices
+
+			-- TODO: SOMETHING WEIRD IS HAPPENING IN NESTED!
+			-- ALSO PREVENT ERROR ON path that cant be resolved on ENTER
+			while #stack > 0 do
+				local span_index = table.remove(stack)
+				local curr_span = spans[span_index]
+
+				if curr_span and not seen_ids[curr_span.id] then
+					seen_ids[curr_span.id] = true
+
+					local kids = children[curr_span.id]
+					local has_children = kids and #kids > 0
+					if has_children and not curr_span.collapsed then
+						for ci = #kids, 1, -1 do
+							local child_i = kids[ci]
+							local child_span = spans[child_i]
+							if not seen_ids[child_span.id] then
+								table.insert(stack, child_i)
+							end
+						end
+					end
+
+					---@type TreeInfo
+					local tree_info = {
+						depth = depth,
+						has_children = has_children,
+					}
+
+					lines[#lines + 1] = {
+						span_id = curr_span.id,
+						line = utils.format_info(curr_span, tree_info),
+						source = curr_span.meta and curr_span.meta.full_source,
+					}
+
+					if has_children and not curr_span.collapsed then
+						depth = depth + 1
+					end
+				end
+			end
 		end
 	end
 
@@ -190,7 +254,7 @@ function M.render(spans)
 		for _, v in ipairs(category) do
 			local index = #lines + 1
 			lines[index] = v.line
-			state.extmarks[index] = v.source
+			state.extmarks[index] = { source = v.source, span_id = v.span_id }
 		end
 	end
 

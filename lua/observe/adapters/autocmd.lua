@@ -14,13 +14,18 @@ local function callback_label(cb)
 	if type(cb) == "function" then
 		local info = path_utils.determine_source()
 		local label = "function"
-		if info.truncated_source then
+		if info.truncated_source and info.line_defined then
 			label = path_utils.get_formatted_line(info.truncated_source, info.line_defined)
+		end
+
+		local source
+		if info.full_source and info.line_defined then
+			source = path_utils.get_formatted_line(info.full_source, info.line_defined)
 		end
 
 		return {
 			label = label,
-			source = path_utils.get_formatted_line(info.truncated_source, info.line_defined),
+			source = source,
 		}
 	end
 

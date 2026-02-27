@@ -22,6 +22,7 @@
 ---@field depth integer
 
 ---@class ObserveSpan : StartObserveSpan
+---@field collapsed boolean
 ---@field end_ns integer?
 ---@field duration_ns integer?
 
@@ -30,6 +31,7 @@
 ---@field max_spans integer
 ---@field spans ObserveSpan[]
 ---@field active_spans ObserveSpan[]
+---@field marks table<integer, ExtInfo>
 
 ---@class ObserveStoreOpts
 ---@field max_spans integer?
@@ -56,20 +58,27 @@
 ---@class TimelineViewState
 ---@field max_timeline_spans integer
 
+---@class ExtInfo
+---@field source string?
+---@field span_id integer
+
 ---@class ReportUIState: TimelineViewState
 ---@field show_timeline boolean
----@field extmarks table<integer, string>
+---@field extmarks table<integer, ExtInfo>
 
 ---@class RenderLineMeta
+---@field span_id integer?
 ---@field line string
 ---@field source? string
 
 ---@class MergeMeta
+---@field span_id integer
 ---@field name string
 ---@field duration integer
 ---@field source string?
 
 ---@class TotalByKey
+---@field span_id integer
 ---@field key string
 ---@field name string
 ---@field duration integer
@@ -82,3 +91,7 @@
 ---@field current_line integer
 ---@field truncated_source string|nil
 ---@field full_source string|nil
+
+--- @class TreeInfo
+--- @field has_children boolean
+--- @field depth integer

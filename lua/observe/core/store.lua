@@ -10,14 +10,8 @@ local state = {
 	max_spans = 1000,
 	spans = {},
 	active_spans = {},
+	marks = {},
 }
-
---- Get parent id
---- @return integer?
-function M.get_parent_id()
-	local recent_span = state.active_spans[#state.active_spans]
-	return recent_span and recent_span.id or nil
-end
 
 ---@param opts ObserveStoreOpts?
 function M.configure(opts)
@@ -42,6 +36,26 @@ end
 --- Reset spans
 function M.reset()
 	state.spans = {}
+end
+
+--- Get parent id
+--- @return integer?
+function M.get_parent_id()
+	local recent_span = state.active_spans[#state.active_spans]
+	return recent_span and recent_span.id or nil
+end
+
+--- Get parent id
+--- @return table<integer, ExtInfo>
+function M.get_marks()
+	return state.marks
+end
+
+--- Get parent id
+--- @param ext integer
+--- @param data ExtInfo
+function M.set_mark(ext, data)
+	state.marks[ext] = data
 end
 
 --- Begin a span and returns it or nil if disabled.
@@ -77,7 +91,12 @@ function M.finish_span()
 	local end_ns = clock.now_ns()
 
 	---@type ObserveSpan
-	local span = vim.tbl_deep_extend("force", {}, h, { end_ns = end_ns, duration_ns = end_ns - h.start_ns })
+	local span = vim.tbl_deep_extend(
+		"force",
+		{},
+		h,
+		{ end_ns = end_ns, duration_ns = end_ns - h.start_ns, collapsed = false }
+	)
 
 	local spans = state.spans
 	spans[#spans + 1] = span
@@ -104,6 +123,19 @@ end
 
 ---@return ObserveSpan[]
 function M.get_spans()
+	return state.spans
+end
+
+---Expand / Collapse span in timeline
+---@param span_id integer
+---@return ObserveSpan[]
+function M.toggle_span_view(span_id)
+	for i, v in ipairs(state.spans) do
+		if v.id == span_id then
+			v.collapsed = not v.collapsed
+			state.spans[i] = v
+		end
+	end
 	return state.spans
 end
 

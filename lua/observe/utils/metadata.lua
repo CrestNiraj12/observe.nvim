@@ -58,8 +58,9 @@ end
 
 ---Render info from span
 ---@param span ObserveSpan
+---@param tree_info TreeInfo?
 ---@return string
-function M.format_info(span)
+function M.format_info(span, tree_info)
 	local source, data = M.parse_info_from_meta(span.meta)
 	if source ~= "" then
 		source = string.format(" (%s) ", source)
@@ -68,7 +69,16 @@ function M.format_info(span)
 	local suffix = #data > 0 and ("  [" .. table.concat(data, " | ") .. "]") or ""
 	local timestamp = M.ns_to_ms(span.duration_ns or 0)
 	local line = string.format("%s %s%s%s", M.render_timestamp(timestamp), span.name, source, suffix)
-	line = string.rep("  ", span.depth) .. line
+
+	if tree_info and tree_info.depth > 0 then
+		local pad = string.rep("  ", tree_info.depth)
+		if tree_info.has_children then
+			local icon = span.collapsed and "▶" or "▼"
+			line = string.format("%s %s", icon, line)
+		end
+		line = pad .. line
+	end
+
 	return line
 end
 
