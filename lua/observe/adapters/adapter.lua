@@ -1,6 +1,6 @@
 local autocmd_adapter = require("observe.adapters.autocmd")
 local lsp_adapter = require("observe.adapters.lsp")
-local vim_adapter = require("observe.adapters.vim")
+local cmd_adapter = require("observe.adapters.cmd")
 
 local M = {}
 
@@ -31,14 +31,14 @@ function M.enable()
 	end
 
 	if state.cmd then
-		vim_adapter.enable()
+		cmd_adapter.enable()
 	end
 end
 
 function M.disable()
 	autocmd_adapter.disable()
 	lsp_adapter.disable()
-	vim_adapter.disable()
+	cmd_adapter.disable()
 end
 
 return M
