@@ -14,6 +14,10 @@ local orig_defer_fn = vim.defer_fn
 local function wrap_callback(cb, kind, ...)
 	local parent_id = store.get_parent_id()
 	local info = path_utils.determine_source()
+	if not info then
+		cb(...)
+		return
+	end
 
 	local meta = {
 		type = "cmd",
@@ -50,6 +54,11 @@ local function wrap_async_callback(cb, kind)
 	local parent_id = store.get_parent_id()
 
 	return function(...)
+		if not info then
+			cb(...)
+			return
+		end
+
 		local source = "async_cmd"
 		if info.truncated_source and info.current_line then
 			source = path_utils.get_formatted_line(info.truncated_source, info.current_line)

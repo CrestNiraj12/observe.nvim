@@ -176,8 +176,6 @@ local function render_timeline(spans)
 			local root_si = roots[ri]
 			local stack = { root_si } -- stack of indices
 
-			-- TODO: SOMETHING WEIRD IS HAPPENING IN NESTED!
-			-- ALSO PREVENT ERROR ON path that cant be resolved on ENTER
 			while #stack > 0 do
 				local span_index = table.remove(stack)
 				local curr_span = spans[span_index]

@@ -9,10 +9,14 @@ local patched = false
 ---Find the callback source and line number if possible
 ---and return it
 ---@param cb any
----@return SourceLabel
+---@return SourceLabel|nil
 local function callback_label(cb)
 	if type(cb) == "function" then
 		local info = path_utils.determine_source()
+		if not info then
+			return nil
+		end
+
 		local label = "function"
 		if info.truncated_source and info.line_defined then
 			label = path_utils.get_formatted_line(info.truncated_source, info.line_defined)
@@ -46,7 +50,6 @@ local function wrap_callback(event, opts)
 		return nil
 	end
 
-	local source_label = callback_label(cb)
 	local ev = type(event) == "table" and table.concat(event, ",") or tostring(event)
 	local name = string.format("%s: %s", "Autocmd", ev)
 
@@ -60,9 +63,11 @@ local function wrap_callback(event, opts)
 		source = "?",
 	}
 
+	local source_label = callback_label(cb)
+
 	if type(cb) == "function" then
 		return function(...)
-			if not store.is_enabled() then
+			if not store.is_enabled() or not source_label then
 				return cb(...)
 			end
 
@@ -83,7 +88,7 @@ local function wrap_callback(event, opts)
 
 	if type(cb) == "string" then
 		return function()
-			if not store.is_enabled() then
+			if not store.is_enabled() or not source_label then
 				return vim.cmd(cb)
 			end
 

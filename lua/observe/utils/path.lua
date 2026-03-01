@@ -144,7 +144,7 @@ local function is_noise_source(src)
 		return true
 	end
 	-- neovim runtime lua
-	if src:find("/lua/vim/", 1, true) then
+	if src:find("^vim/") or src:find("/vim/") then
 		return true
 	end
 	-- also runtime vimscript-ish
@@ -155,8 +155,10 @@ local function is_noise_source(src)
 end
 
 ---Get truncated and full source of command from debug info
----@return DebugInfo
+---@return DebugInfo|nil
 function M.determine_source()
+	local is_noise = true
+
 	local info, source
 	for i = 2, 20 do
 		info = debug.getinfo(i, "Sl")
@@ -164,13 +166,18 @@ function M.determine_source()
 			break
 		end
 
-		if info.source and info.source:sub(1, 1) == "@" then
+		if info.source:sub(1, 1) == "@" then
 			source = M.clean_src(info.source)
 		end
 
 		if not is_noise_source(source) then
+			is_noise = false
 			break
 		end
+	end
+
+	if is_noise then
+		return nil
 	end
 
 	local truncated_src ---@type string|nil

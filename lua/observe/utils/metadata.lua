@@ -18,7 +18,7 @@ function M.render_timestamp(ms)
 		time = "<0.01ms"
 	end
 
-	return string.format("%7s", time)
+	return time
 end
 
 ---Extract info from meta
@@ -68,13 +68,15 @@ function M.format_info(span, tree_info)
 
 	local suffix = #data > 0 and ("  [" .. table.concat(data, " | ") .. "]") or ""
 	local timestamp = M.ns_to_ms(span.duration_ns or 0)
-	local line = string.format("%s %s%s%s", M.render_timestamp(timestamp), span.name, source, suffix)
+	local line = string.format(" %s %s%s%s", M.render_timestamp(timestamp), span.name, source, suffix)
 
-	if tree_info and tree_info.depth > 0 then
+	if tree_info and tree_info.depth >= 0 then
 		local pad = string.rep("  ", tree_info.depth)
 		if tree_info.has_children then
 			local icon = span.collapsed and "▶" or "▼"
-			line = string.format("%s %s", icon, line)
+			line = icon .. line
+		else
+			line = " " .. line
 		end
 		line = pad .. line
 	end
