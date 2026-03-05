@@ -64,7 +64,8 @@
 
 ---@class ReportUIState: TimelineViewState
 ---@field show_timeline boolean
----@field extmarks table<integer, ExtInfo>
+---@field info_extmarks table<integer, ExtInfo>
+---@field timeline_extmarks table<integer, ExtInfo>
 
 ---@class RenderLineMeta
 ---@field span_id integer?

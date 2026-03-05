@@ -63,7 +63,11 @@ end
 function M.format_info(span, tree_info)
 	local source, data = M.parse_info_from_meta(span.meta)
 	if source ~= "" then
-		source = string.format(" (%s) ", source)
+		if span.meta and (span.meta.type == "async_cmd" or span.meta.type == "cmd") then
+			source = ""
+		else
+			source = string.format(" (%s) ", source)
+		end
 	end
 
 	local suffix = #data > 0 and ("  [" .. table.concat(data, " | ") .. "]") or ""

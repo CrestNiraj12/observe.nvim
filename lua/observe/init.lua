@@ -47,6 +47,7 @@ function M.stop()
 	state.enabled = false
 	adapters.disable()
 	store.disable()
+	M.report()
 
 	vim.notify("Tracing stopped!", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 end
@@ -60,8 +61,8 @@ function M.report()
 
 	vim.notify("Generating report...", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 	local spans = store.get_spans()
-	local lines = view.render(spans)
-	report.open_report(lines)
+	local info_lines, timeline_lines = view.render(spans)
+	report.open_report(info_lines, timeline_lines)
 end
 
 ---Check if tracing is currently active

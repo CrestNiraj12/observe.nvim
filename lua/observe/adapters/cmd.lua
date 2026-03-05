@@ -36,7 +36,7 @@ local function wrap_callback(cb, kind, ...)
 		meta.cmd = kind
 	end
 
-	store.begin_span(("Cmd: %s"):format(meta.cmd), meta, parent_id)
+	store.begin_span(("Cmd: %s (%s)"):format(meta.cmd, meta.source), meta, parent_id)
 
 	local results = { pcall(cb, ...) }
 
@@ -49,24 +49,31 @@ local function wrap_callback(cb, kind, ...)
 	return unpack(results)
 end
 
-local function wrap_async_callback(cb, kind)
-	local info = path_utils.determine_source()
-	local parent_id = store.get_parent_id()
-
-	return function(...)
-		if not info then
-			cb(...)
-			return
-		end
-
-		local source = "async_cmd"
-		if info.truncated_source and info.current_line then
-			source = path_utils.get_formatted_line(info.truncated_source, info.current_line)
-		end
-
-		local full_source
+---Get truncated and full source of the executed cmd
+---@param info DebugInfo|nil
+---@return string|nil
+---@return string|nil
+local function get_source_data(info)
+	local source, full_source
+	if info and info.truncated_source and info.current_line then
+		source = path_utils.get_formatted_line(info.truncated_source, info.current_line)
 		if info.full_source and info.current_line then
 			full_source = path_utils.get_formatted_line(info.full_source, info.current_line)
+		end
+	end
+	return source, full_source
+end
+
+local function wrap_async_callback(cb, kind)
+	local parent_id = store.get_parent_id()
+	local info = path_utils.determine_source()
+
+	return function(...)
+		local source, full_source
+
+		source, full_source = get_source_data(info)
+		if not source then
+			source = "?"
 		end
 
 		local meta = {
@@ -76,7 +83,7 @@ local function wrap_async_callback(cb, kind)
 			full_source = full_source,
 		}
 
-		store.begin_span(("Async: %s"):format(kind), meta, parent_id)
+		store.begin_span(("Async: %s (%s)"):format(kind, source), meta, parent_id)
 		local results = { pcall(cb, ...) }
 		store.finish_span()
 
