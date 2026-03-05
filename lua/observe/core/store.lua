@@ -90,6 +90,12 @@ function M.finish_span()
 	local h = table.remove(state.active_spans) ---@type StartObserveSpan
 	local end_ns = clock.now_ns()
 
+	-- Filter spans less than 1ms
+	local ns = end_ns - h.start_ns
+	if ns < 1e6 then
+		return
+	end
+
 	---@type ObserveSpan
 	local span = vim.tbl_deep_extend(
 		"force",

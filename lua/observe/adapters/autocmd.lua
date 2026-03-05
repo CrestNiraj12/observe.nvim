@@ -37,7 +37,7 @@ local function callback_label(cb)
 		return { label = "cmd" }
 	end
 
-	return { label = "unknown" }
+	return { label = "?" }
 end
 
 ---Observe the callback time
