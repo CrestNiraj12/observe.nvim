@@ -4,8 +4,7 @@
 
 local store = require("observe.core.store")
 local view = require("observe.ui.view")
-local path_utils = require("observe.utils.path")
-local extmarks = require("observe.utils.extmarks")
+local win_util = require("observe.utils.win")
 
 local REPORT_INFO = "observe://report-info"
 local REPORT_TIMELINE = "observe://report-timeline"
@@ -24,7 +23,6 @@ local function ensure_highlights()
 	vim.api.nvim_set_hl(0, "ObserveTitle", { bold = true })
 end
 
---TODO: Gotta fix it up for two windows
 ---Apply highlights to buffer
 local function apply_highlights(buf, lines)
 	vim.api.nvim_buf_clear_namespace(buf, ns_hl, 0, -1)
@@ -80,42 +78,12 @@ local function ensure_timeline_buf(force)
 	local buf = ensure_buf(REPORT_TIMELINE)
 	report_timeline_buf = buf
 
-	--TODO: need to close both windows and extract function and make it reusable
 	vim.keymap.set("n", "q", function()
-		local wins = vim.api.nvim_list_wins()
-		if #wins > 1 then
-			-- if there are more than 1 window, close the current window
-			pcall(vim.api.nvim_win_close, 0, false)
-			return
-		end
-
-		-- if there is only 1 window,
-		-- create a new buffer inside the window and close the current report buffer
-		local cur_buf = vim.api.nvim_get_current_buf()
-		vim.cmd("enew")
-		pcall(vim.api.nvim_buf_delete, cur_buf, { force = true })
+		win_util.close_window()
 	end, { buffer = buf, nowait = true, silent = true })
 
-	-- TODO: Toggle info (DO WE ACTUALLY NEED TO DO IT THO?)
-	-- vim.keymap.set("n", "i", function()
-	-- 	M.toggle_timeline()
-	-- end, { buffer = buf, desc = "Toggle timeline in report" })
-
-	--TODO: need to extract function and make it reusable
 	vim.keymap.set("n", "<CR>", function()
-		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-
-		local marks = vim.api.nvim_buf_get_extmarks(report_timeline_buf, ns_marks, { row, 0 }, { row, -1 }, {})
-		if #marks == 0 then
-			return
-		end
-
-		local info = extmarks.get_extmark_data(marks)
-		if not info or not info.source then
-			return
-		end
-
-		path_utils.open_location_enter(report_timeline_buf, info.source)
+		win_util.open_file(report_timeline_buf, ns_marks)
 	end, { buffer = buf, desc = "Open source file" })
 
 	vim.keymap.set("n", "e", function()
@@ -166,42 +134,12 @@ local function ensure_info_buf(force)
 	local buf = ensure_buf(REPORT_INFO)
 	report_info_buf = buf
 
-	--TODO: need to close both report split, also need to extract function and make it reusable
 	vim.keymap.set("n", "q", function()
-		local wins = vim.api.nvim_list_wins()
-		if #wins > 1 then
-			-- if there are more than 1 window, close the current window
-			pcall(vim.api.nvim_win_close, 0, false)
-			return
-		end
-
-		-- if there is only 1 window,
-		-- create a new buffer inside the window and close the current report buffer
-		local cur_buf = vim.api.nvim_get_current_buf()
-		vim.cmd("enew")
-		pcall(vim.api.nvim_buf_delete, cur_buf, { force = true })
+		win_util.close_window()
 	end, { buffer = buf, nowait = true, silent = true })
 
-	-- TODO: Toggle timeline (DO WE ACTUALLY NEED TO DO IT THO?)
-	-- vim.keymap.set("n", "t", function()
-	-- 	M.toggle_timeline()
-	-- end, { buffer = buf, desc = "Toggle timeline in report" })
-
-	--TODO: need to extract function and make it reusable
 	vim.keymap.set("n", "<CR>", function()
-		local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-
-		local marks = vim.api.nvim_buf_get_extmarks(report_info_buf, ns_marks, { row, 0 }, { row, -1 }, {})
-		if #marks == 0 then
-			return
-		end
-
-		local info = extmarks.get_extmark_data(marks)
-		if not info or not info.source then
-			return
-		end
-
-		path_utils.open_location_enter(report_info_buf, info.source)
+		win_util.open_file(report_info_buf, ns_marks)
 	end, { buffer = buf, desc = "Open source file" })
 
 	return buf
@@ -304,40 +242,16 @@ function M.open_report(info_lines, timeline_lines)
 	timeline_buf = ensure_timeline_buf(true)
 	info_buf = ensure_info_buf(true)
 	if info_buf then
-		vim.cmd("botright split")
+		vim.cmd("botright 15split")
 		vim.api.nvim_win_set_buf(0, info_buf)
 		if timeline_buf then
-			vim.cmd("botright vsplit")
+			vim.cmd("botright 40vsplit")
 			vim.api.nvim_win_set_buf(0, timeline_buf)
 		end
 	end
 
 	set_buf_lines(info_lines, timeline_lines)
 end
-
--- ---Toggle to view/hide timeline spans
--- function M.toggle_timeline()
--- 	local buf = ensure_info_buf()
--- 	local cur_buf = vim.api.nvim_get_current_buf()
---
--- 	if cur_buf ~= buf then
--- 		return
--- 	end
---
--- 	local saved_view = vim.fn.winsaveview()
---
--- 	view.toggle_timeline_view()
---
--- 	local spans = store.get_spans()
--- 	local lines = view.render(spans)
--- 	set_lines(buf, lines)
---
--- 	local height = vim.api.nvim_win_get_height(0)
--- 	local max_topline = math.max(1, #lines - height + 1)
--- 	saved_view.topline = math.min(saved_view.topline, max_topline)
---
--- 	vim.fn.winrestview(saved_view)
--- end
 
 ---Toggle span in timeline and render its child
 ---@param span_id integer

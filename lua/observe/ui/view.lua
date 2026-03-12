@@ -5,7 +5,6 @@ local M = {}
 
 ---@type ReportUIState
 local state = {
-	show_timeline = true,
 	max_timeline_spans = 0,
 	info_extmarks = {},
 	timeline_extmarks = {},
@@ -29,11 +28,6 @@ function M.configure(opts)
 	if opts and opts.max_timeline_spans then
 		state.max_timeline_spans = math.max(constants.MIN_TIMELINE_SPANS, opts.max_timeline_spans)
 	end
-end
-
----Toggle timeline show/hide status
-function M.toggle_timeline_view()
-	state.show_timeline = not state.show_timeline
 end
 
 ---Render top 10 slowest spans
@@ -141,20 +135,9 @@ end
 local function render_timeline(spans)
 	local lines = {}
 
-	local timeline_header = (state.show_timeline and "▼" or "►") .. " Timeline"
-	local header_with_hint = timeline_header
-	-- TODO: idk what to do with this now
-	-- if not state.show_timeline then
-	-- 	header_with_hint = header_with_hint .. " (press t to reveal)"
-	-- end
-
+	local timeline_header = "Timeline"
 	lines[#lines + 1] = { line = "" }
-	lines[#lines + 1] = { line = header_with_hint }
-
-	if not state.show_timeline then
-		return lines
-	end
-
+	lines[#lines + 1] = { line = timeline_header }
 	lines[#lines + 1] = { line = string.rep("-", #timeline_header) }
 
 	if #spans <= 0 then
