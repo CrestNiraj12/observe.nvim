@@ -1,5 +1,6 @@
 local constants = require("observe.constants")
 local utils = require("observe.utils.metadata")
+local line_util = require("observe.utils.line")
 
 local M = {}
 
@@ -44,8 +45,11 @@ local function render_top_slow_spans(spans)
 	for i = 1, math.min(10, #spans) do
 		local span = spans[i]
 		local index = #lines + 1
-		lines[index] =
-			{ span_id = span.id, line = utils.format_info(span), source = span.meta and span.meta.full_source }
+		lines[index] = {
+			span_id = span.id,
+			line = " " .. line_util.format_info(span),
+			source = span.meta and span.meta.full_source,
+		}
 	end
 	return lines
 end
@@ -186,6 +190,10 @@ local function render_timeline(spans)
 					end
 				end
 
+				if not has_children then
+					depth = depth + 1
+				end
+
 				---@type TreeInfo
 				local tree_info = {
 					depth = depth,
@@ -194,7 +202,7 @@ local function render_timeline(spans)
 
 				lines[#lines + 1] = {
 					span_id = curr_span.id,
-					line = utils.format_info(curr_span, tree_info),
+					line = line_util.format_info(curr_span, tree_info),
 					source = curr_span.meta and curr_span.meta.full_source,
 				}
 			end
@@ -214,19 +222,20 @@ function M.render(spans)
 	local lines = {}
 	local timeline = {}
 
-	lines[#lines + 1] = constants.PLUGIN_NAME .. " --- Report"
-	lines[#lines + 1] = string.rep("-", #lines[1])
+	lines[#lines + 1] = line_util.render_line(constants.PLUGIN_NAME .. " --- Report")
+	lines[#lines + 1] = line_util.render_line(string.rep("-", #lines[1]))
 
 	local total_ns = 0
 	for _, s in ipairs(spans) do
 		total_ns = total_ns + (s.duration_ns or 0)
 	end
 
-	lines[#lines + 1] = string.format("spans: %d | total: %.2fms", #spans, utils.ns_to_ms(total_ns))
+	lines[#lines + 1] =
+		line_util.render_line(string.format("spans: %d | total: %.2fms", #spans, utils.ns_to_ms(total_ns)))
 
 	if #spans == 0 then
 		lines[#lines + 1] = ""
-		lines[#lines + 1] = "No spans recorded!"
+		lines[#lines + 1] = line_util.render_line("No spans recorded!")
 		return lines, {}
 	end
 
@@ -251,7 +260,7 @@ function M.render(spans)
 
 		for _, v in ipairs(category) do
 			local index = #buf_lines + 1
-			buf_lines[index] = v.line
+			buf_lines[index] = line_util.render_line(v.line)
 			extmarks[index] = { source = v.source, span_id = v.span_id }
 		end
 	end

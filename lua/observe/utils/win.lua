@@ -38,4 +38,15 @@ function M.open_file(buf, ns)
 	path_utils.open_location_enter(buf, info.source)
 end
 
+function M.clean_window()
+	vim.wo.number = false
+	vim.wo.relativenumber = false
+	vim.wo.signcolumn = "no"
+	vim.wo.foldcolumn = "0"
+	vim.wo.cursorline = true
+	vim.wo.wrap = false
+	vim.wo.list = false
+	vim.wo.statusline = " "
+end
+
 return M

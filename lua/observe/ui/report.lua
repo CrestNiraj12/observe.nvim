@@ -243,9 +243,11 @@ function M.open_report(info_lines, timeline_lines)
 	info_buf = ensure_info_buf(true)
 	if info_buf then
 		vim.cmd("botright 15split")
+		win_util.clean_window()
 		vim.api.nvim_win_set_buf(0, info_buf)
 		if timeline_buf then
 			vim.cmd("botright 40vsplit")
+			win_util.clean_window()
 			vim.api.nvim_win_set_buf(0, timeline_buf)
 		end
 	end
