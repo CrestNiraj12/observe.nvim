@@ -47,6 +47,7 @@ function M.stop()
 	state.enabled = false
 	adapters.disable()
 	store.disable()
+	M.report()
 
 	vim.notify("Tracing stopped!", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 end
@@ -58,10 +59,19 @@ function M.report()
 		return
 	end
 
-	vim.notify("Generating report...", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
 	local spans = store.get_spans()
-	local lines = view.render(spans)
-	report.open_report(lines)
+	if #spans <= 0 then
+		vim.notify(
+			"There is no recorded data. Please trace first using ObserveStart!",
+			vim.log.levels.INFO,
+			{ title = constants.PLUGIN_NAME }
+		)
+		return
+	end
+
+	vim.notify("Generating report...", vim.log.levels.INFO, { title = constants.PLUGIN_NAME })
+	local info_lines, timeline_lines = view.render(spans)
+	report.open_report(info_lines, timeline_lines)
 end
 
 ---Check if tracing is currently active

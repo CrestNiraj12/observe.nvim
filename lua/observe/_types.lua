@@ -1,3 +1,8 @@
+---@class ObserveConfig
+---@field adapters table<HandlerType, boolean>?
+---@field max_spans integer?
+---@field max_timeline_spans integer?
+
 ---@class ObserveState
 ---@field enabled boolean
 ---@field config ObserveConfig
@@ -63,8 +68,8 @@
 ---@field span_id integer
 
 ---@class ReportUIState: TimelineViewState
----@field show_timeline boolean
----@field extmarks table<integer, ExtInfo>
+---@field info_extmarks table<integer, ExtInfo>
+---@field timeline_extmarks table<integer, ExtInfo>
 
 ---@class RenderLineMeta
 ---@field span_id integer?
